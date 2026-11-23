@@ -1,0 +1,364 @@
+/* EnviroOS Field-First theme. Values are synchronized from the surrounding app. */
+:root {
+  --enviro-bg:#F7FAF3; --enviro-card:#FFFFFF; --enviro-card-2:#EEF3E7;
+  --enviro-ink:#0C1509; --enviro-sub:#4A5B41; --enviro-muted:#5E6E54;
+  --enviro-line:rgba(12,21,9,.10); --enviro-accent:#16A34A; --enviro-accent-ink:#FFFFFF;
+  --enviro-ok-bg:#DCF2DF; --enviro-bad:#B91C1C; --enviro-bad-bg:#FEE2E2;
+  --enviro-lift:0 1px 3px rgba(12,21,9,.04),0 4px 12px -2px rgba(12,21,9,.04);
+  --enviro-font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,"Noto Sans","Segoe UI",Arial,sans-serif;
+  --enviro-display:"Plus Jakarta Sans",var(--enviro-font);
+}
+:root[data-enviro-theme="dark"] {
+  color-scheme:dark;
+  --enviro-bg:#070D06; --enviro-card:#101A0E; --enviro-card-2:#172514;
+  --enviro-ink:#F2F9EE; --enviro-sub:#9CB490; --enviro-muted:#839B78;
+  --enviro-line:rgba(160,228,152,.16); --enviro-accent:#4ADE80; --enviro-accent-ink:#051407;
+  --enviro-ok-bg:rgba(34,197,94,.16); --enviro-bad:#FCA5A5; --enviro-bad-bg:rgba(239,68,68,.18);
+  --enviro-lift:0 2px 6px rgba(0,0,0,.38),0 10px 24px -4px rgba(0,0,0,.46);
+}
+.enviro-ui {
+  --paper:var(--enviro-bg); --white:var(--enviro-card); --ink:var(--enviro-ink);
+  --muted:var(--enviro-muted); --line:var(--enviro-line); --green:var(--enviro-accent);
+  --radius:18px; --shadow:var(--enviro-lift); color-scheme:light;
+}
+.enviro-ui[data-enviro-theme="dark"] {color-scheme:dark}
+.enviro-ui body {background:var(--enviro-bg); color:var(--enviro-ink); font:15px/1.55 var(--enviro-font)}
+.enviro-ui h1,.enviro-ui h2,.enviro-ui h3 {font-family:var(--enviro-display);color:var(--enviro-ink);letter-spacing:-.025em}
+.enviro-ui .workspace {background:var(--enviro-bg)}
+.enviro-ui .workspace>main {padding:24px;max-width:1600px;margin:auto}
+.enviro-ui .panel,.enviro-ui header,.enviro-ui .mobile-nav,.enviro-ui dialog,.enviro-ui article {
+  background:var(--enviro-card);color:var(--enviro-ink);border-color:var(--enviro-line);box-shadow:var(--enviro-lift);border-radius:18px;
+}
+.enviro-ui header {border-radius:0;min-height:72px}
+.enviro-ui .heading {align-items:center;margin-bottom:24px;gap:20px}
+.enviro-ui .heading h1 {font-size:clamp(26px,3vw,36px);line-height:1.2;max-width:none;margin:8px 0}
+.enviro-ui .heading h1 em {font-style:normal;color:var(--enviro-accent)}
+.enviro-ui .heading p {font-size:15px;max-width:none;color:var(--enviro-sub);margin:8px 0}
+.enviro-ui .heading-actions {flex-direction:row;flex-wrap:wrap;padding:0}
+.enviro-ui .eyebrow,.enviro-ui .panel .eyebrow {color:var(--enviro-muted);font-size:11px;letter-spacing:.09em}
+.enviro-ui h2,.enviro-ui .mission h2,.enviro-ui .vision h2 {font-size:21px;font-weight:750}
+.enviro-ui .breadcrumb,.enviro-ui .breadcrumb strong,.enviro-ui .heading p,.enviro-ui .readiness>div,
+.enviro-ui .mission-hint,.enviro-ui .vision-note p,.enviro-ui .legend,.enviro-ui .map-footer>small,
+.enviro-ui .tool-guidance,.enviro-ui .itinerary-footer,.enviro-ui .metrics small,.enviro-ui .wait-control,
+.enviro-ui .stop-card small,.enviro-ui .stop-card label,.enviro-ui .connection-tip,.enviro-ui .dialog-links,
+.enviro-ui .help-step p,.enviro-ui .shortcut-guide>span,.enviro-ui footer,.enviro-ui dialog p {color:var(--enviro-sub);font-size:13px}
+.enviro-ui .button,.enviro-ui button,.enviro-ui .map-switch button,.enviro-ui .drive-pad button,
+.enviro-ui #historyPanel button,.enviro-ui .journey button {
+  min-height:48px;border:1px solid var(--enviro-line);border-radius:12px;
+  background:var(--enviro-card-2);color:var(--enviro-ink);font:600 14px var(--enviro-font);padding:12px 16px;
+}
+.enviro-ui .icon-button,.enviro-ui .map-tools button {width:48px;min-width:48px;padding:12px}
+.enviro-ui button:disabled {opacity:.45}
+.enviro-ui .button.primary,.enviro-ui .start,.enviro-ui .connection.live,
+.enviro-ui .map-switch [aria-pressed="true"],.enviro-ui .drive-pad .held {
+  background:var(--enviro-accent);color:var(--enviro-accent-ink);border-color:transparent;
+}
+.enviro-ui .stop-button,.enviro-ui #autoStop,.enviro-ui .drive-pad [data-drive="stop"] {
+  background:var(--enviro-bad-bg);color:var(--enviro-bad);border-color:var(--enviro-line);
+}
+.enviro-ui .drive-pad button {min-height:58px;white-space:normal;padding:10px 5px}
+.enviro-ui button:focus-visible,.enviro-ui a:focus-visible,.enviro-ui input:focus-visible,
+.enviro-ui select:focus-visible {outline:3px solid var(--enviro-accent);outline-offset:3px}
+.enviro-ui .notice,.enviro-ui .notice.live {background:var(--enviro-ok-bg);color:var(--enviro-sub);border:1px solid var(--enviro-line);border-radius:14px;font-size:14px}
+.enviro-ui .notice b {color:var(--enviro-ink)}
+.enviro-ui .notice button,.enviro-ui .itinerary-footer>button {background:transparent;color:var(--enviro-accent)}
+.enviro-ui .notice.error {background:var(--enviro-bad-bg);color:var(--enviro-bad)}
+.enviro-ui .planning-flow {gap:10px;margin-bottom:24px}
+.enviro-ui .planning-flow>button {padding:12px;flex-direction:row;align-items:center;background:var(--enviro-card);box-shadow:var(--enviro-lift);border:1px solid var(--enviro-line);border-radius:14px}
+.enviro-ui .planning-flow b {color:var(--enviro-ink);font-size:13px}
+.enviro-ui .planning-flow small {color:var(--enviro-muted);font-size:12px}
+.enviro-ui .planning-flow>button>span {background:var(--enviro-card-2);border-color:var(--enviro-line);color:var(--enviro-ink);box-shadow:none}
+.enviro-ui .planning-flow .current>span,.enviro-ui .planning-flow .done>span {background:var(--enviro-accent);color:var(--enviro-accent-ink);border-color:transparent;box-shadow:none}
+.enviro-ui .heading-dot,.enviro-ui .state-dot.ok,.enviro-ui .rail-dot {background:var(--enviro-accent)}
+.enviro-ui .segmented,.enviro-ui .map-footer,.enviro-ui .tool-guidance,
+.enviro-ui .mission .readiness,.enviro-ui .stop-card,.enviro-ui .number-field {background:var(--enviro-card-2);border-color:var(--enviro-line)}
+.enviro-ui .segmented button {padding:10px;min-width:48px;background:transparent}
+.enviro-ui .segmented button.active {background:var(--enviro-card);color:var(--enviro-accent);box-shadow:var(--enviro-lift)}
+.enviro-ui .small-badge,.enviro-ui .status-pill,.enviro-ui .camera-status-tag,
+.enviro-ui .camera-status-tag.live,.enviro-ui .chip,.enviro-ui .map-location {
+  background:var(--enviro-card-2);color:var(--enviro-sub);border-color:var(--enviro-line);font-size:11px;
+}
+.enviro-ui .status-pill.running {background:var(--enviro-ok-bg);color:var(--enviro-accent)}
+.enviro-ui .metrics strong,.enviro-ui .stop-card-title,.enviro-ui #cameraPlaceholder>b {color:var(--enviro-ink)}
+.enviro-ui .stop-card-title>span {background:var(--enviro-ok-bg);color:var(--enviro-ink);border-color:var(--enviro-line)}
+.enviro-ui .stop-list,.enviro-ui .itinerary-heading,.enviro-ui .itinerary-footer,.enviro-ui .panel-heading {border-color:var(--enviro-line)}
+.enviro-ui .empty-stops p,.enviro-ui .empty-stops small {color:var(--enviro-muted);font-size:14px}
+.enviro-ui input,.enviro-ui select,.enviro-ui dialog input {background:var(--enviro-card);color:var(--enviro-ink);border:1px solid var(--enviro-line);border-radius:10px;min-height:48px;font:inherit}
+.enviro-ui input::placeholder {color:var(--enviro-muted)}
+.enviro-ui .number-field input {background:transparent}
+.enviro-ui dialog {padding:24px;border:1px solid var(--enviro-line)}
+.enviro-ui dialog label,.enviro-ui .help-step b {color:var(--enviro-ink);font-size:14px}
+.enviro-ui .dialog-symbol,.enviro-ui .help-step>span {background:var(--enviro-ok-bg);color:var(--enviro-accent);border-color:var(--enviro-line)}
+.enviro-ui .map-panel #scenePanel {background:var(--enviro-card-2);color:var(--enviro-ink)}
+.enviro-ui .journey,.enviro-ui #historyPanel {background:var(--enviro-card-2);color:var(--enviro-ink)}
+.enviro-ui .journey-map {background:var(--enviro-card);border-color:var(--enviro-line);border-radius:12px}
+.enviro-ui .night-map .journey-map {background:var(--enviro-card-2)}
+.enviro-ui .journey-map .route-plan {stroke:var(--enviro-muted)}
+.enviro-ui .journey-map .route-track {stroke:var(--enviro-accent)}
+.enviro-ui #historyPanel details {border-color:var(--enviro-line)}
+.enviro-ui #sceneStatus,.enviro-ui .steering p {font-size:14px;color:var(--enviro-sub)}
+.enviro-ui .vision-note {border-color:var(--enviro-line)}
+.enviro-ui #toast {left:50%;background:var(--enviro-ink);color:var(--enviro-card);border-color:var(--enviro-line);border-radius:14px;font-size:14px}
+.enviro-ui kbd {background:var(--enviro-card-2);color:var(--enviro-muted);border-color:var(--enviro-line)}
+.enviro-ui #cards article,.enviro-ui #form {background:var(--enviro-card);border-color:var(--enviro-line);border-radius:18px;color:var(--enviro-ink)}
+.enviro-ui #cards article img {background:white;border-radius:8px;padding:4px}
+.enviro-ui #cards article button {width:100%;margin-top:12px}
+.enviro-ui #cards article small {color:var(--enviro-sub)}
+.enviro-ui a {color:var(--enviro-accent)}
+@media(max-width:660px) {
+  .enviro-ui .workspace>main {padding:16px}
+  .enviro-ui .heading {display:block}
+  .enviro-ui .heading-actions {margin-top:16px;display:flex;flex-direction:row;gap:8px}
+  .enviro-ui .heading-actions .button {font-size:13px;flex:1;padding:10px}
+  .enviro-ui .planning-flow {display:grid;grid-template-columns:1fr 1fr}
+  .enviro-ui .planning-flow>button {min-height:64px;padding:10px}
+  .enviro-ui .planning-flow b {font-size:12px}
+  .enviro-ui .planning-flow small {display:none}
+  .enviro-ui .map-switch {padding:12px;gap:6px}
+  .enviro-ui .map-switch button {font-size:13px;padding:10px;flex:1}
+  .enviro-ui .map-switch>span {flex-basis:100%}
+  .enviro-ui .segmented {flex-wrap:wrap}
+  .enviro-ui .map-toolbar {flex-wrap:wrap}
+  .enviro-ui .map-wrap {min-height:340px;height:380px}
+  .enviro-ui .notice {font-size:13px}
+  .enviro-ui .vision.expanded {width:calc(100vw - 16px)}
+}
+
+.enviro-ui .rover-speed-control { margin:16px 0;padding:16px;background:var(--enviro-card-2);border-radius:14px; }
+.enviro-ui .rover-speed-control label { display:block;font-weight:650; }
+.enviro-ui .rover-speed-control input { width:100%;accent-color:var(--enviro-accent); }
+.enviro-ui .rover-speed-control small { color:var(--enviro-sub); }
+
+/* Seamless embedded layout: the surrounding app owns page scrolling. */
+html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
+.embedded .workspace {min-height:0;height:auto;margin:0;}
+.embedded.enviro-ui .workspace>main {padding:0;max-width:none;}
+.embedded header {border:0;box-shadow:none;background:transparent;min-height:56px;padding:0 0 16px;}
+.embedded .breadcrumb,.embedded .chip,.embedded .mobile-nav,.embedded .heading>div:first-child,.embedded footer {display:none;}
+.embedded .heading {justify-content:flex-end;margin:0 0 16px;}
+.embedded .map-wrap {height:440px;min-height:440px;flex:auto;}
+.embedded .map-panel #scenePanel {min-height:420px;}
+.embedded #sceneImage {max-height:600px;}
+.embedded dialog {position:fixed;top:var(--visible-top,80px);bottom:auto;margin:0 auto;max-height:calc(var(--visible-height,800px) - 140px);}
+.embedded .vision.expanded {top:var(--visible-top,80px);max-height:calc(var(--visible-height,800px) - 120px);}
+.embedded .vision.expanded .camera-view {height:420px;}
+@media(max-width:660px){.embedded .map-wrap{height:360px;min-height:360px;}.embedded .heading-actions{margin-top:0;}}
+
+/* Compact control groups, with consistent alignment and one clear hierarchy. */
+.embedded header {display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:0 0 16px;min-height:0;flex-wrap:wrap;}
+.embedded header .top-meta {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.embedded header .heading-actions {display:flex;gap:10px;align-items:center;margin:0;}
+.embedded .heading {display:none;}
+.embedded .notice {margin-bottom:16px;gap:12px;}
+.embedded .notice-icon {flex-shrink:0;}
+.embedded .planning-flow {margin-bottom:16px;}
+.embedded .dashboard {gap:16px;grid-template-columns:minmax(0,1.65fr) minmax(320px,1fr);align-items:start;}
+.embedded .right-column {display:flex;flex-direction:column;gap:16px;}
+.embedded .right-column .vision {order:-1;}
+.embedded .panel-heading {padding:18px 20px 14px;}
+.embedded .panel-heading h2 {margin:4px 0 0;}
+.embedded .steering {padding:12px 18px 18px;}
+.embedded .steering>.map-switch {padding:0 0 10px;display:flex;flex-wrap:nowrap;}
+.embedded .steering>.map-switch button {flex:1;white-space:nowrap;}
+.embedded #autoControls {display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.embedded #autoControls p {grid-column:1/-1;margin:0 0 4px;}
+.embedded #steerStatus {padding:8px 0;min-height:40px;margin:0;}
+.embedded .camera-view {height:240px;}
+.embedded .vision-note {padding:0 18px 16px;}
+.embedded .vision-note p {margin:0;}
+.embedded .map-switch {align-items:center;}
+.embedded .map-switch button {white-space:nowrap;}
+.embedded .itinerary {margin-top:16px;}
+.embedded .itinerary-heading {padding:18px 20px;align-items:center;}
+.embedded .wait-control {display:flex;align-items:center;gap:10px;}
+.embedded .metrics {gap:8px;}
+@media(max-width:950px){.embedded .dashboard {grid-template-columns:1fr;}.embedded .right-column {display:grid;grid-template-columns:1fr 1fr;align-items:start;}}
+@media(max-width:660px){
+ .embedded header {justify-content:stretch;gap:8px;}
+ .embedded header .top-meta {width:100%;display:grid;grid-template-columns:48px 1fr;gap:8px;}
+ .embedded header .heading-actions {grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;width:100%;}
+ .embedded header .heading-actions .button {margin:0;}
+ .embedded .right-column {display:flex;}
+ .embedded .itinerary-heading {flex-wrap:wrap;gap:12px;}
+ .embedded .wait-control {max-width:none;justify-content:flex-start;flex-wrap:wrap;}
+ .embedded .planning-flow>button {padding:10px;}
+}
+
+/* Essential driving console: no planning dashboard in the main Rover view. */
+.simple-rover .planning-flow,.simple-rover #notice,.simple-rover #routeWorkspace,.simple-rover .mission,.simple-rover #itinerary,.simple-rover .vision-note,.simple-rover .heading,.simple-rover footer {display:none!important;}
+.simple-rover header .heading-actions,.simple-rover #quickHelp {display:none!important;}
+.simple-rover header {padding:0 0 10px;}
+.simple-rover header .top-meta {width:100%;justify-content:flex-end;gap:8px;}
+.simple-rover header button {min-height:40px;padding:8px 14px;font-size:13px;}
+.simple-rover .dashboard {display:block;}
+.simple-rover .right-column {display:block;}
+.simple-rover .vision {display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,1fr);gap:0 16px;padding:14px;border-radius:18px;}
+.simple-rover .vision .panel-heading {grid-column:1/-1;padding:0 0 12px;align-items:center;}
+.simple-rover .vision .panel-heading .eyebrow {display:none;}
+.simple-rover .vision .panel-heading h2 {font-size:18px;margin:0;}
+.simple-rover .camera-view {height:280px;margin:0;border-radius:12px;align-self:stretch;}
+.simple-rover .steering {padding:0;min-width:0;}
+.simple-rover .steering>.map-switch {padding:0 0 8px;gap:6px;}
+.simple-rover .steering>.map-switch button {font-size:12px;padding:10px;min-height:42px;}
+.simple-rover #steerStatus {font-size:12px;min-height:34px;padding:5px 0;line-height:1.4;}
+.simple-rover .drive-pad {gap:6px;}
+.simple-rover .drive-pad button {min-height:48px;padding:8px 3px;font-size:12px;}
+.simple-rover #autoControls p {font-size:13px;line-height:1.5;}
+.simple-rover #compactHistoryDialog #historyPanel {display:block!important;}
+.simple-rover .camera-status-tag {font-size:10px;}
+@media(max-width:660px){
+ .simple-rover header .top-meta {display:flex;justify-content:space-between;flex-wrap:nowrap;}
+ .simple-rover header button {font-size:11px;padding:8px;min-height:38px;}
+ .simple-rover .vision {display:flex;flex-direction:column;padding:10px;gap:10px;}
+ .simple-rover .vision .panel-heading {padding:0;}
+ .simple-rover .camera-view {width:100%;height:150px;min-height:110px;}
+ .simple-rover .steering>.map-switch button {min-height:38px;padding:7px;font-size:11px;}
+ .simple-rover .drive-pad button {min-height:38px;padding:6px 2px;font-size:11px;}
+ .simple-rover #steerStatus {min-height:26px;font-size:11px;}
+ .simple-rover #cameraPlaceholder>span,.simple-rover .camera-reticle {display:none;}
+ .simple-rover #cameraOpen {min-height:32px;padding:5px 10px;}
+}
+@media(max-height:700px) and (min-width:661px){.simple-rover .camera-view{height:230px;}.simple-rover .vision{padding:10px;}.simple-rover .drive-pad button{min-height:42px;}.simple-rover header button{min-height:36px;}}
+.simple-rover #cameraPlaceholder>b {color:#e0eedf;}
+.simple-rover #cameraPlaceholder>span {color:#b6cbb2;}
+@media(max-width:360px){.simple-rover .camera-view{height:130px;}}
+
+/* Rover console uses the same surface, status and control tokens as EnviroOS. */
+.enviro-ui .rover-operation,
+.enviro-ui .rover-results {padding:14px 16px;margin-bottom:12px}
+.rover-operation-main {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rover-operation-copy {min-width:0}
+.enviro-ui .rover-operation h2 {margin:4px 0 2px;font-size:clamp(16px,2vw,21px);line-height:1.2;overflow-wrap:anywhere}
+.rover-operation p,.rover-results p {margin:4px 0;color:var(--enviro-sub);font-size:13px}
+.rover-mode {display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;background:var(--enviro-card-2);color:var(--enviro-sub);font-size:11px;font-weight:750}
+.rover-mode::before {content:"";inline-size:6px;block-size:6px;border-radius:50%;background:currentColor}
+[data-tone="active"] .rover-mode {background:var(--enviro-ok-bg);color:var(--enviro-ink)}
+[data-tone="waiting"] .rover-mode {border:1px solid var(--enviro-line)}
+[data-tone="fault"] .rover-mode {background:var(--enviro-bad-bg);color:var(--enviro-bad)}
+.rover-operation-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.enviro-ui .rover-operation-actions button,.enviro-ui #taskEmergencyStop {min-height:44px;padding:7px 11px;font-size:12px}
+.rover-progress {display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--enviro-sub)}
+.rover-progress progress {flex:1;min-width:0;accent-color:var(--enviro-accent)}
+.rover-results {margin-top:12px}
+.rover-results summary {cursor:pointer;min-height:28px;font-weight:750;line-height:1.6;overflow-wrap:anywhere}
+.rover-results summary small {margin-inline-start:8px;font-weight:500;color:var(--enviro-sub)}
+.rover-results summary:focus-visible {outline:2px solid var(--enviro-accent);outline-offset:4px}
+.rover-results-content {padding-top:10px}
+.soil-grid,.treatment-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.soil-reading,.treatment-grid div {padding:10px;border-radius:12px;background:var(--enviro-card-2);overflow-wrap:anywhere}
+.soil-grid dt,.treatment-grid dt,.rover-settings-group dt {color:var(--enviro-sub);font-size:12px}
+.soil-grid dd,.treatment-grid dd,.rover-settings-group dd {margin:0}
+.soil-value {font-size:16px;font-weight:750}
+.soil-ok,.soil-low {font-size:12px;font-weight:650}
+.enviro-ui .soil-low {color:var(--enviro-bad)}
+.enviro-ui .soil-ok {color:var(--enviro-sub)}
+.enviro-ui .rover-settings-dialog {width:min(94vw,580px);overflow:auto}
+.rover-settings-dialog form {float:right;margin-left:10px}
+.rover-settings-dialog h2 {margin:5px 0}
+.rover-settings-group {border-top:1px solid var(--enviro-line);padding:10px 0 0}
+.rover-settings-group h3 {margin:4px 0;font-size:15px}
+.rover-settings-group dl {margin:4px 0 9px}
+.rover-settings-group dl div {display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 0;overflow-wrap:anywhere}
+.rover-settings-group dd {font-size:13px}
+.enviro-ui .rover-speed-control {display:block;margin:8px 0;padding:8px 10px}
+.enviro-ui .rover-speed-control label {display:flex;justify-content:space-between;gap:6px;font-size:12px}
+.enviro-ui .rover-speed-control input {display:block;min-height:26px;margin:0}
+#driveSpeedFormula,.rover-speed-control small {display:none}
+.enviro-ui .drive-pad [data-drive="right"] {grid-column:3;grid-row:2}
+.enviro-ui .drive-pad [data-drive="back"] {grid-row:3}
+.enviro-ui .drive-pad [data-drive="forward"] {grid-row:1}
+.enviro-ui .drive-pad [data-drive="left"] {grid-row:2}
+.simple-rover header .top-meta {justify-content:flex-start;flex-wrap:wrap;gap:5px}
+.simple-rover header .connection {margin-inline-end:auto}
+.simple-rover header button {min-height:44px}
+.simple-rover #steerStatus {min-height:0;margin:4px 0 6px}
+.simple-rover .camera-view {height:240px}
+@media(max-width:660px){
+ .enviro-ui .rover-operation,.enviro-ui .rover-results {padding:10px 12px;margin-bottom:8px}
+ .rover-operation-main {align-items:flex-start;flex-wrap:wrap;gap:7px}
+ .rover-operation-copy {flex:1 1 140px}
+ .rover-operation-actions {justify-content:flex-start}
+ .simple-rover header button {padding:6px 8px;min-height:40px}
+ .simple-rover .camera-view {height:145px}
+ .simple-rover .drive-pad button {min-height:42px}
+ .soil-grid,.treatment-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .rover-results summary small {display:block;margin-inline-start:14px}
+}
+
+.rover-progress[hidden] {display:none}
+.simple-rover header {height:auto;min-height:0;position:relative}
+.simple-rover .rover-operation[data-tone="idle"] {padding-block:9px}
+.simple-rover .rover-operation[data-tone="idle"] .rover-operation-copy {display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px}
+.simple-rover .rover-operation[data-tone="idle"] h2 {margin:0}
+.simple-rover .rover-operation[data-tone="idle"] #taskSummary {flex-basis:100%}
+.simple-rover .rover-results {padding-block:8px}
+.simple-rover .rover-settings-button {display:inline-flex;align-items:center;gap:6px}
+.simple-rover .rover-settings-button svg {width:17px;height:17px}
+.simple-rover #steerStatus:empty {display:none}
+.simple-rover .rover-speed-control {margin:3px 0 8px}
+.simple-rover .vision .panel-heading {padding-bottom:8px}
+@media(max-width:660px){
+ .simple-rover .rover-settings-button span,.simple-rover .connection>svg {display:none}
+ .simple-rover .rover-settings-button {width:40px;justify-content:center}
+ .simple-rover .rover-operation[data-tone="idle"] #taskSummary {margin:0}
+ .simple-rover .vision .panel-heading h2 {font-size:16px}
+ .simple-rover .camera-actions {gap:4px}
+ .simple-rover .camera-actions .icon-button {min-width:35px;width:35px;padding:6px}
+ .simple-rover.rover-disconnected .drive-pad,.simple-rover.rover-disconnected .rover-speed-control {display:none}
+}
+.enviro-ui #taskEmergencyStop {width:auto;margin:0;white-space:nowrap}
+.enviro-ui #taskEmergencyStop[hidden] {display:none}
+.simple-rover .rover-operation-actions {align-items:center}
+@media(max-width:660px){
+ .simple-rover.rover-locked .drive-pad,.simple-rover.rover-locked .rover-speed-control {display:none}
+ .simple-rover .rover-operation-actions {width:auto}
+}
+.enviro-ui #toast {pointer-events:none}
+
+/* Keep feed, QR and position in separate badges so they wrap cleanly on phones. */
+.enviro-ui .camera-label {
+  right:10px;
+  flex-wrap:wrap;
+  align-content:flex-start;
+  gap:5px;
+  padding:0;
+  border:0;
+  background:none;
+  font:12px/1.25 var(--enviro-font);
+  letter-spacing:normal;
+  pointer-events:none;
+}
+.enviro-ui .camera-pill {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  min-width:0;
+  max-width:100%;
+  padding:4px 8px;
+  border:1px solid #507061;
+  border-radius:8px;
+  background:#10251f;
+  color:#f2f9ee;
+  overflow-wrap:anywhere;
+}
+.enviro-ui .camera-pill[hidden],.simple-rover.rover-locked #cameraQRStatus {display:none}
+.enviro-ui .camera-pill-key {color:#b8ccb8;font-weight:650}
+.enviro-ui .camera-dot {width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#a0aea6}
+.enviro-ui [data-state="live"] > .camera-dot {background:#72e79a}
+.enviro-ui [data-state="unavailable"] > .camera-dot {background:#ffab9d}
+.enviro-ui #cameraGPSStatus {pointer-events:auto}
+@media(max-width:660px) {
+  .enviro-ui .camera-label {top:7px;left:7px;right:7px;font-size:11px}
+  .enviro-ui .camera-pill {padding:3px 6px}
+}
+#payloadPanel h3 {margin:0 0 3px;font-size:15px}
+#payloadPanel .rover-operation-actions {justify-content:flex-start;margin-top:5px}
+#payloadReadings[hidden],#payloadPanel button[hidden],#payloadPanel p:empty {display:none}
+
+/* Match the host console's flat surfaces in standalone and embedded modes. */
+.enviro-ui :is(.panel,header,article,.mobile-nav) {box-shadow:none;border-radius:12px}
+.enviro-ui :is(.button,button,.map-switch button,.drive-pad button) {border-radius:8px;box-shadow:none}
+.enviro-ui :is(.camera-view,.soil-reading,.treatment-grid div) {border-radius:10px}
+.enviro-ui .workspace header {border-radius:0}
+.enviro-ui .camera-view:has(#camera[hidden]) {background:#13241d}
+.enviro-ui dialog {border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14)}

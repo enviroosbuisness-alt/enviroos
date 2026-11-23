@@ -1,0 +1,28 @@
+{
+  "name": "EnviroOS — Smart Farming",
+  "short_name": "EnviroOS",
+  "description": "A simple assistant for your farm. Water, heat, soil, weather and crop at a glance.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8faf0",
+  "theme_color": "#40661d",
+  "lang": "en",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Talk to Agri",
+      "short_name": "Agri",
+      "description": "Open Agri AI and start talking",
+      "url": "./index.html?agri=1",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1B4D12" />
+  <meta name="description" content="EnviroOS — a simple voice-first assistant for your farm. Water, heat, soil, weather, crop and automatic pump control at a glance." />
+  <title>EnviroOS — Smart Farming Assistant</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <script>try { if (localStorage.getItem('enviroos.glass') === '1') document.body.classList.add('glass'); } catch (e) {}</script>
+  <div class="app">
+    <header class="hd">
+      <button class="brand" id="btn-farm" type="button" aria-label="My Farm">
+        <span class="brand-mark" aria-hidden="true"><span class="material-symbols-outlined">eco</span></span>
+        <span class="brand-text">
+          <span class="brand-name" data-i18n="app_name">EnviroOS</span>
+          <span class="brand-sub" id="brand-sub"></span>
+        </span>
+      </button>
+      <div class="hd-actions">
+        <button class="pill pill-wake" id="btn-wake" type="button" data-wake-tap="1" aria-label="Hands-free mode"><span class="dot" aria-hidden="true"></span><span id="hf-badge-label">Standby Off</span></button>
+        <button class="pill" id="btn-node" type="button" aria-label="Sensor Node"></button>
+        <button class="pill pill-lang" id="btn-lang" type="button" aria-label="Language"></button>
+        <button class="iconbtn" id="btn-theme" type="button" aria-label="Toggle Dark Mode"></button>
+        <button class="iconbtn" id="btn-alerts" type="button" aria-label="Alerts"></button>
+        <button class="iconbtn" id="btn-market" type="button" aria-label="Market" title="Market"><span class="material-symbols-outlined">storefront</span></button>
+        <button class="iconbtn" id="btn-cmd" type="button" aria-label="Quick Actions"><span class="material-symbols-outlined">search</span></button>
+        <button class="iconbtn" id="btn-settings" type="button" aria-label="Settings"></button>
+      </div>
+    </header>
+
+    <div class="offlinebar" id="offlinebar" role="status">
+      <span class="offline-dot" aria-hidden="true"></span>
+      <span data-i18n="offline_note">Offline</span>
+    </div>
+
+    <div class="voicebar" id="voicebar" role="status" aria-live="polite"></div>
+
+    <main id="main">
+      <section class="screen" id="s-home" aria-label="Home"></section>
+      <section class="screen" id="s-soil" aria-label="Soil"></section>
+      <section class="screen" id="s-crop" aria-label="Crop"></section>
+      <section class="screen" id="s-weather" aria-label="Weather"></section>
+      <section class="screen" id="s-agri" aria-label="Agri AI"></section>
+      <section class="screen" id="s-robot" aria-label="Pump & Robot"></section>
+      <section class="screen" id="s-rover" aria-label="Rover"></section>
+      <section class="screen" id="s-history" aria-label="History"></section>
+      <section class="screen" id="s-market" aria-label="Market"></section>
+      <section class="screen" id="s-second-device" aria-label="Second Device"></section>
+    </main>
+
+    <nav class="tabs" aria-label="Main Navigation"><div class="tabs-in" id="tabs"></div></nav>
+    <aside class="rail" aria-label="Main Navigation"><div class="rail-in" id="rail"></div><button class="tab rail-account" type="button" data-open-signin="1" aria-label="Account" title="Account"><span class="tab-pill"><span class="material-symbols-outlined ui-ic" aria-hidden="true">account_circle</span></span><span class="tab-lbl" data-i18n="account_nav">Account</span></button></aside>
+  </div>
+
+  <div class="cmd" id="cmd" role="dialog" aria-modal="true" aria-label="Quick Actions">
+    <div class="cmd-box">
+      <div class="cmd-head">
+        <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        <input id="cmd-input" autocomplete="off" />
+        <button class="iconbtn sm" id="cmd-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="cmd-list" id="cmd-list" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <aside class="hf-panel" id="hands-free-panel" aria-labelledby="hf-panel-title" hidden>
+    <div class="hf-panel-head">
+      <span class="hf-mark" aria-hidden="true"><span class="material-symbols-outlined">mic</span></span>
+      <div><strong id="hf-panel-title">Agri AI</strong><div id="hf-panel-status" role="status" aria-live="polite"></div></div>
+      <button class="iconbtn sm" type="button" id="hf-dismiss" aria-label="Close"><span aria-hidden="true" class="material-symbols-outlined">close</span></button>
+    </div>
+    <p id="hf-panel-note" class="hf-note" hidden></p>
+    <p id="hf-transcript" class="hf-transcript" hidden></p>
+    <div id="hf-answer" class="hf-answer" aria-live="polite" hidden></div>
+    <div class="hf-actions">
+      <button type="button" class="btn secondary sm" id="hf-stop" hidden></button>
+      <button type="button" class="btn secondary sm" id="hf-retry" hidden></button>
+      <button type="button" class="btn secondary sm" id="hf-talk" hidden></button>
+      <button type="button" class="btn secondary sm" id="hf-trial" hidden></button>
+      <button type="button" class="btn secondary sm" id="hf-popup-install" hidden></button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="sheet-in"><div class="grab" aria-hidden="true"></div><div id="sheet-body"></div></div></div>
+  <div class="dlg-wrap" id="dlg-wrap"><div class="dlg" role="dialog" aria-modal="true" id="dlg"><div id="dlg-body"></div></div></div>
+  <noscript><p style="padding:24px">EnviroOS needs JavaScript to run.</p></noscript>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

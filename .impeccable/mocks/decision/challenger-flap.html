@@ -1,0 +1,34 @@
+<!doctype html><html lang="hi"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;box-sizing:border-box}body{width:390px;height:844px;overflow:hidden;font-family:'Plus Jakarta Sans','Noto Sans Devanagari',sans-serif;background:#0B0F0A;color:#F5EFDB}
+.frame{margin:12px;border:3px solid #3A4536;border-radius:10px;height:820px;background:#10160F;overflow:hidden;position:relative}
+.head{padding:14px 16px 12px;border-bottom:3px solid #3A4536;display:flex;justify-content:space-between;align-items:center}
+.head b{font-size:15px;font-weight:800;letter-spacing:.14em}
+.head span{font-size:11px;font-weight:700;color:#8A937F;letter-spacing:.1em}
+.rows{padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+.row{display:flex;align-items:stretch;gap:0;border-radius:6px;overflow:hidden}
+.cell{background:#1C231A;padding:10px 12px}
+.cell.k{flex:1.2;font-size:12px;font-weight:800;letter-spacing:.1em;color:#B9C2AB;display:flex;align-items:center}
+.cell.v{flex:1;background:#F5EFDB;color:#141A12;font-size:30px;font-weight:800;display:flex;align-items:center;font-variant-numeric:tabular-nums}
+.cell.s{width:44px;background:#232B20;display:grid;place-items:center;font-size:19px;font-weight:800;color:#F5EFDB}
+.row.warn .cell.v{background:#F5C518;color:#141A12}
+.row.warn .cell.s{background:#F5C518;color:#141A12}
+.row.flip .cell.v{background:linear-gradient(180deg,#F5EFDB 50%,#8A937F 50%)}
+.lamp{width:11px;height:11px;border-radius:50%;background:#F5C518;box-shadow:0 0 10px #F5C518;margin-right:8px}
+.lamp.off{background:#3A4536;box-shadow:none}
+.foot{position:absolute;bottom:0;left:0;right:0;padding:11px 16px;border-top:3px solid #3A4536;display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#8A937F;letter-spacing:.1em}
+.live{display:flex;align-items:center;color:#7FD08A}
+</style></head><body>
+<div class="frame">
+<div class="head"><b>ENVIROOS · NODE 1</b><span>बाजरा</span></div>
+<div class="rows">
+<div class="row"><div class="cell k">पानी</div><div class="cell v">28%</div><div class="cell s">▲</div></div>
+<div class="row warn"><div class="cell k"><span class="lamp"></span>गर्मी</div><div class="cell v">37°</div><div class="cell s">!</div></div>
+<div class="row flip"><div class="cell k"><span class="lamp off"></span>धूप</div><div class="cell v">64K</div><div class="cell s">☀</div></div>
+<div class="row"><div class="cell k"><span class="lamp off"></span>हवा</div><div class="cell v">34%</div><div class="cell s">✓</div></div>
+<div class="row"><div class="cell k"><span class="lamp off"></span>पंप</div><div class="cell v">बंद</div><div class="cell s">■</div></div>
+</div>
+<div class="foot"><span class="live"><span class="lamp" style="box-shadow:0 0 10px #7FD08A;background:#7FD08A"></span>LIVE · MQTT</span><span>07:00 · 4 जांचें</span></div>
+</div>
+</body></html>
