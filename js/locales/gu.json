@@ -220,6 +220,18 @@
     "nav_weather": "હવામાન"
   },
   "rover": {
+    "Ultrasonic emergency stop": "અલ્ટ્રાસોનિક ઇમરજન્સી સ્ટોપ",
+    "Reset emergency stop": "ઇમરજન્સી સ્ટોપ રીસેટ કરો",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "આગળના સેન્સર સામેનો અવરોધ દૂર કરો અને ESP32 રોકાણની પુષ્ટિ કરે ત્યાં સુધી રાહ જુઓ.",
+    "Edit": "ફેરફાર કરો",
+    "Edit QR card": "QR કાર્ડમાં ફેરફાર કરો",
+    "Save changes": "ફેરફારો સાચવો",
+    "Cancel": "રદ કરો",
+    "Front ultrasonic": "આગળનું અલ્ટ્રાસોનિક સેન્સર",
+    "No echo": "પડઘો મળ્યો નથી",
+    "Unavailable": "ઉપલબ્ધ નથી",
+    "Waiting for front ultrasonic readings.": "આગળના અલ્ટ્રાસોનિક સેન્સરના રીડિંગની રાહ જોઈ રહ્યા છીએ.",
+    "Front obstacle detected. Steering stopped.": "આગળ અવરોધ મળ્યો. રોવર અટકી ગયો.",
     "Commands": "આદેશો",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "દરેક લીટીમાં એક આદેશ લખો અથવા તેમને અલ્પવિરામથી અલગ કરો. સમય ન આપ્યો હોય તો રોવર ૩ સેકન્ડ ચાલશે.",
     "Inspect": "તપાસ",

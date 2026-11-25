@@ -220,6 +220,18 @@
     "nav_weather": "వాతావరణం"
   },
   "rover": {
+    "Ultrasonic emergency stop": "అల్ట్రాసోనిక్ అత్యవసర స్టాప్",
+    "Reset emergency stop": "అత్యవసర స్టాప్‌ను రీసెట్ చేయండి",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "ముందరి సెన్సార్‌కు అడ్డంకిని తొలగించి, ESP32 ఆగినట్లు నిర్ధారించే వరకు వేచి ఉండండి.",
+    "Edit": "సవరించండి",
+    "Edit QR card": "QR కార్డ్‌ను సవరించండి",
+    "Save changes": "మార్పులను సేవ్ చేయండి",
+    "Cancel": "రద్దు చేయండి",
+    "Front ultrasonic": "ముందరి అల్ట్రాసోనిక్ సెన్సార్",
+    "No echo": "ప్రతిధ్వని లేదు",
+    "Unavailable": "అందుబాటులో లేదు",
+    "Waiting for front ultrasonic readings.": "ముందరి అల్ట్రాసోనిక్ సెన్సార్ రీడింగ్‌ల కోసం వేచి ఉంది.",
+    "Front obstacle detected. Steering stopped.": "ముందు అడ్డంకి గుర్తించబడింది. రోవర్ ఆగింది.",
     "Commands": "ఆదేశాలు",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "ఒక్కో పంక్తిలో ఒక ఆదేశం రాయండి లేదా కామాలతో వేరు చేయండి. సమయం ఇవ్వకపోతే రోవర్ ౩ సెకన్లు కదులుతుంది.",
     "Inspect": "పరిశీలన",

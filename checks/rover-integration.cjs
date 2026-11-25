@@ -28,7 +28,7 @@ const assert = require('node:assert/strict');
    };
   });
   await page.setRequestInterception(true);
-  const cards=[{payload:'left',label:'Left',direction:'left',wait:0}];
+  const cards=[{payload:'left',label:'Left',direction:'left',wait:0,editable:true}];
   const appUrl = process.env.APP_URL || 'http://127.0.0.1:5186';
   page.on('request',async req=>{
    if(!req.url().startsWith('http://127.0.0.1:18888/')) {
@@ -45,10 +45,14 @@ const assert = require('node:assert/strict');
     if(req.method()==='POST') {
      const command=JSON.parse(req.postData());
      if(command.operation==='remove') cards.splice(cards.findIndex(card=>card.payload===command.payload),1);
+     else if(command.operation==='update') {
+      const card=cards.find(entry=>entry.payload===command.payload);
+      Object.assign(card,{label:command.label,steps:[{action:'right',seconds:2},{action:'wait',seconds:5}]});
+     }
      else {
       const steps = command.commands === 'stop' ? [{action:'stop',seconds:0}] :
        [{action:'wait',seconds:4},{action:'forward',seconds:2}];
-      cards.push({...command,payload:'enviro-test',direction:command.commands === 'stop' ? 'stop' : 'sequence',wait:0,steps});
+      cards.push({...command,payload:'enviro-test',direction:command.commands === 'stop' ? 'stop' : 'sequence',wait:0,steps,editable:true});
      }
     }
     data=cards;
@@ -85,14 +89,33 @@ const assert = require('node:assert/strict');
   await qr.waitForFunction(()=>document.documentElement.lang==='en' &&
     document.querySelector('h1').textContent==='QR cards');
 
-  await qr.waitForFunction(()=>!document.querySelector('#form button').disabled);
+  await qr.waitForFunction(()=>!document.querySelector('#qrSubmit').disabled);
   await qr.type('#label','Gate');await qr.type('#commands','wait(4), forward(2)');
-  await qr.click('#form button');
+  await qr.click('#qrSubmit');
   await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card saved on the Pi.');
   assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&
     JSON.stringify(JSON.parse(c.body))===JSON.stringify({label:'Gate',commands:'wait(4), forward(2)'})));
   assert.match(await qr.$eval('#cards article:last-child small',e=>e.textContent),/Wait \(4 s\) → Forward \(2 s\)/);
   assert.equal(await qr.$eval('#cards article:first-child .remove-card',button=>button.getAttribute('aria-label')),'Remove Left');
+  await qr.type('#label','Unsaved draft');
+  await qr.click('#cards article:last-child .edit-card');
+  assert.equal(await qr.$eval('#qrFormTitle',heading=>heading.textContent),'Edit QR card');
+  assert.equal(await qr.$eval('#label',input=>input.value),'Gate');
+  assert.equal(await qr.$eval('#commands',input=>input.value),'wait(4), forward(2)');
+  await qr.click('#cancelQrEdit');
+  assert.equal(await qr.$eval('#label',input=>input.value),'Unsaved draft');
+  await qr.click('#cards article:last-child .edit-card');
+  await qr.$eval('#label',input=>input.value='East gate');
+  await qr.$eval('#commands',input=>input.value='right(2), wait(5)');
+  await qr.click('#qrSubmit');
+  await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card saved on the Pi.' &&
+    document.querySelector('#label').value==='Unsaved draft');
+  assert.equal(await qr.$$eval('#cards article', items=>items.length),2);
+  assert.equal(await qr.$eval('#cards article:last-child h3',e=>e.textContent),'East gate');
+  assert.match(await qr.$eval('#cards article:last-child small',e=>e.textContent),/Right \(2 s\) → Wait \(5 s\)/);
+  assert.deepEqual(JSON.parse(calls.filter(c=>c.path==='/api/qr/cards'&&c.method==='POST').at(-1).body),
+    {operation:'update',payload:'enviro-test',label:'East gate',commands:'right(2), wait(5)'});
+  await qr.$eval('#label',input=>input.value='');
   await qr.click('#cards article:last-child .card-actions button:first-child');
   await qr.waitForFunction(()=>!document.querySelector('#cards article:last-child .card-actions button:first-child').disabled);
   page.once('dialog', dialog=>dialog.accept());
@@ -102,7 +125,7 @@ const assert = require('node:assert/strict');
   assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&JSON.parse(c.body).operation==='remove'&&JSON.parse(c.body).payload==='enviro-test'));
   await qr.type('#label','Loading bay');
   await qr.type('#commands','stop');
-  await qr.click('#form button');
+  await qr.click('#qrSubmit');
   await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card saved on the Pi.');
   assert.deepEqual(JSON.parse(calls.filter(c=>c.path==='/api/qr/cards'&&c.method==='POST').at(-1).body),
     {label:'Loading bay',commands:'stop'});

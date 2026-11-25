@@ -80,8 +80,7 @@ window.EnviroOS = window.EnviroOS || {};
   /* ---------- 4. Minimalist Field Verdict & Daily Advice ---------- */
   C.heroVerdict = (opts) => {
     opts = opts || {};
-    const a = U.analysis;
-    const issues = a ? a.issues : [];
+    const issues = U.homeIssues();
     const n = issues.length;
     const mapCond = { water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' };
 
@@ -120,7 +119,7 @@ window.EnviroOS = window.EnviroOS || {};
   function roverCardMeasurement(id) {
     if (!U.hasRover()) return '';
     const reading = U.roverHomeReading;
-    const value = id === 'water' ? reading?.water : id === 'heat' ? reading?.temperature : null;
+    const value = id === 'water' ? reading?.water : null;
     return Number.isFinite(value) ? E.i18n.number(value) + ' ADC' : '';
   }
 
@@ -138,9 +137,13 @@ window.EnviroOS = window.EnviroOS || {};
     const cond = { water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' }[id];
     const icon = { water: U.icons.drop, heat: U.icons.heat, soil: U.icons.leaf, weather: U.icons.cloud }[id];
     const measure = U.measureOf(id);
-    const useRover = U.hasRover() && measure === '—' && ['water','heat'].includes(id);
+    const rover = U.hasRover();
+    const useRover = rover && measure === '—' && id === 'water';
+    const showRain = rover && id === 'weather';
+    const rain = U.outlook?.estimate?.prob ?? U.outlook?.current?.prob;
     const forecast = U.outlook?.source === 'online' ? U.outlook.current : null;
-    const displayMeasure = useRover ? roverCardMeasurement(id) || '—' :
+    const displayMeasure = showRain ? (Number.isFinite(rain) ? fmtInt(rain) + '%' : '—') :
+      useRover ? roverCardMeasurement(id) || '—' :
       id === 'weather' && measure === '—' && Number.isFinite(forecast?.tempC)
         ? fmt1(forecast.tempC) + '°C' : measure;
     const mark = st.tone === 'good' ? U.icons.check : (st.tone === 'bad' ? U.icons.warn : (st.tone === 'mute' ? '–' : U.icons.up));
@@ -163,9 +166,8 @@ window.EnviroOS = window.EnviroOS || {};
       const pill = (lbl, val, band) => `<span class="npkmini ${band === 'good' ? 'good' : (band === 'unknown' ? 'mute' : 'warn')}"><b>${lbl}</b> ${val != null ? fmtInt(val) : '—'}</span>`;
       visualGauge = `<div class="npkrow-mini">${pill('N', s && s.n, n.n)}${pill('P', s && s.p, n.p)}${pill('K', s && s.k, n.k)}<span class="npkmini mute">pH ${s && s.ph != null ? fmt1(s.ph) : '—'}</span></div>`;
     } else if (id === 'weather') {
-      const prob = U.outlook && U.outlook.estimate && U.outlook.estimate.prob != null ? U.outlook.estimate.prob : (U.outlook && U.outlook.current ? U.outlook.current.prob : null);
       visualGauge = `<div class="minigauge"><div class="mg-sub"><span>${s && s.pressureHpa != null ? fmt1(s.pressureHpa) + ' hPa' : '—'}</span>`
-        + `<span>${prob != null ? `<span class="gauge-ic">${U.icons.rain}</span> ${fmtInt(prob)}%` : (s && s.humidity != null ? `<span class="gauge-ic">${U.icons.drop}</span> ${fmtInt(s.humidity)}% RH` : '')}</span></div></div>`;
+        + `<span>${showRain ? esc(t('rain_prob')) : rain != null ? `<span class="gauge-ic">${U.icons.rain}</span> ${fmtInt(rain)}%` : (s && s.humidity != null ? `<span class="gauge-ic">${U.icons.drop}</span> ${fmtInt(s.humidity)}% RH` : '')}</span></div></div>`;
     }
 
     return `<button class="stcard" type="button" data-sheet="${id}" data-tone="${st.tone}" aria-label="${esc(t(cond))}: ${esc(st.value)}">`

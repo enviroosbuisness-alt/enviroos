@@ -3,7 +3,7 @@
  * names change every build, so they are NOT listed here. The fetch handler
  * below caches them at runtime on first load; offline works from then on.
  * Bump CACHE whenever SHELL changes. */
-const CACHE = 'enviroos-v143-inspection';
+const CACHE = 'enviroos-v149-ultrasonic-estop';
 const SHELL = [
   './',
   './index.html',

@@ -19,6 +19,7 @@ window.EnviroOS = window.EnviroOS || {};
 
   /* ---------- HOME (Action-First Streamlined) ---------- */
   U.vHome = () => {
+    const rover = U.hasRover();
     const lastVoiceHtml = U.lastVoice
       ? `<div class="voicecard">`
         + `<div class="vc-head"><span class="agriname">${U.icons.sparkle} Agri</span><span class="vq">“${esc(U.lastVoice.q || '')}”</span>`
@@ -34,7 +35,7 @@ window.EnviroOS = window.EnviroOS || {};
       + (C.heroVerdict ? C.heroVerdict() : '')
       + lastVoiceHtml
       + secLabel('farm_status', `<button class="textlink" type="button" data-say-home="1">${IC.speaker} ${esc(t('speak_label'))}</button>`)
-      + `<div class="grid2">${statusCard('water')}${statusCard('heat')}${statusCard('soil')}${statusCard('weather')}</div>`
+      + `<div class="grid2${rover ? ' rover-home-status' : ''}">${statusCard('water')}${rover ? '' : statusCard('heat')}${statusCard('soil')}${statusCard('weather')}</div>`
       + secLabel('pump_title')
       + (C.pumpCard ? C.pumpCard() : U.pumpCard())
       + `<div class="home-bottom-links">`
@@ -862,9 +863,12 @@ window.EnviroOS = window.EnviroOS || {};
     const s = U.snapshot, a = U.analysis;
     if (!s || !a) return null;
     const crop = E.getCrop(s.cropId);
+    const climate = U.route === 'home' && U.hasRover() ? [] : [
+      [t('ev_temp'), `${fmt1(s.tempC)} °C`], [t('ev_sun'), U.sunWord()]
+    ];
     const full = [
-      [t('ev_moisture'), `${fmt1(s.moisture)} %`], [t('ev_temp'), `${fmt1(s.tempC)} °C`],
-      [t('ev_sun'), U.sunWord()], [t('ev_humidity'), s.humidity == null ? '—' : `${fmtInt(s.humidity)} %`],
+      [t('ev_moisture'), `${fmt1(s.moisture)} %`], ...climate,
+      [t('ev_humidity'), s.humidity == null ? '—' : `${fmtInt(s.humidity)} %`],
       [t('ev_pressure'), `${fmt1(s.pressureHpa)} hPa`], [t('gdd_total'), `${Math.round(a.crop.progress * 100)} %`]
     ];
     const say = (parts) => parts.filter(Boolean).join('. ');
@@ -874,7 +878,7 @@ window.EnviroOS = window.EnviroOS || {};
         cond: 'cond_water', status: st,
         why: t(a.water.moistureBand === 'excess' ? 'why_water_excess' : (a.water.moistureBand === 'high' ? 'why_water_high' : 'why_water')),
         todo: t(a.water.moistureBand === 'excess' ? 'todo_water_excess' : (a.water.moistureBand === 'high' ? 'todo_water_high' : 'todo_water')),
-        evidence: [[t('ev_moisture'), `${fmt1(s.moisture)} %`], [t('ev_temp'), `${fmt1(s.tempC)} °C`], [t('ev_sun'), U.sunWord()]],
+        evidence: [[t('ev_moisture'), `${fmt1(s.moisture)} %`], ...climate],
         tech: full, say: say([`${t('cond_water')} ${st.value}`, `${t('ev_moisture')} ${fmt1(s.moisture)}%`])
       };
     }
@@ -906,7 +910,7 @@ window.EnviroOS = window.EnviroOS || {};
         cond: 'cond_weather', status: st,
         why: t(a.weather.level === 'watch' ? 'why_weather_changing' : 'why_weather_ok'),
         todo: t('todo_weather'),
-        evidence: [[t('ev_pressure'), `${fmt1(s.pressureHpa)} hPa`], [t('ev_temp'), `${fmt1(s.tempC)} °C`], [t('ev_sun'), U.sunWord()]],
+        evidence: [[t('ev_pressure'), `${fmt1(s.pressureHpa)} hPa`], ...climate],
         tech: full, say: say([`${t('pressure_title')} ${fmt1(s.pressureHpa)}`, st.value])
       };
     }
@@ -924,23 +928,21 @@ window.EnviroOS = window.EnviroOS || {};
 
   /* ---------- alerts sheet ---------- */
   U.sheetAlerts = () => {
-    const a = U.analysis;
+    const issues = U.route === 'home' ? U.homeIssues() : U.analysis?.issues || [];
+    const map = { water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' };
     const items = [];
-    if (a) {
-      const map = { water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' };
-      for (const id of a.issues) {
-        const st = U.statusOf(id);
-        items.push(`<button class="alertrow" type="button" data-sheet="${id}"><span class="stic sm" data-tone="${st.tone}" aria-hidden="true">${st.tone === 'good' ? IC.check : IC.warn}</span><span><strong>${esc(t(map[id]))}</strong><br><span class="muted">${esc(st.value)} — ${esc(st.action)}</span></span><span class="flexsp"></span><span aria-hidden="true">${IC.chev}</span></button>`);
-      }
+    for (const id of issues) {
+      const st = U.statusOf(id);
+      items.push(`<button class="alertrow" type="button" data-sheet="${id}"><span class="stic sm" data-tone="${st.tone}" aria-hidden="true">${st.tone === 'good' ? IC.check : IC.warn}</span><span><strong>${esc(t(map[id]))}</strong><br><span class="muted">${esc(st.value)} — ${esc(st.action)}</span></span><span class="flexsp"></span><span aria-hidden="true">${IC.chev}</span></button>`);
     }
     const p = U.pump ? U.pump.status() : null;
     if (p && p.fault) {
       items.push(`<div class="alertrow"><span class="stic sm" data-tone="bad" aria-hidden="true">${IC.warn}</span><span><strong>${esc(t('pump_title'))}</strong><br><span class="muted">${esc(p.fault)}</span></span></div>`);
     }
     U.openSheetId = null;
-    const sayAll = items.length && a ? t('v_alert_say').replace('{items}', a.issues.map((id) => {
+    const sayAll = issues.length ? t('v_alert_say').replace('{items}', issues.map((id) => {
       const st = U.statusOf(id);
-      return `${t({ water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' }[id])} ${st.value}`;
+      return `${t(map[id])} ${st.value}`;
     }).join('. ')) : '';
     U.openSheet(
       `<div class="sheethead"><div><div class="stcond">${esc(t('alerts_title'))}</div>`

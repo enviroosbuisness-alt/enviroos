@@ -307,6 +307,18 @@
     "nav_weather": "Clima"
   },
   "rover": {
+    "Ultrasonic emergency stop": "Parada de emergencia por ultrasonidos",
+    "Reset emergency stop": "Restablecer parada de emergencia",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "Despeja el sensor frontal y espera a que el ESP32 confirme la parada.",
+    "Edit": "Editar",
+    "Edit QR card": "Editar tarjeta QR",
+    "Save changes": "Guardar cambios",
+    "Cancel": "Cancelar",
+    "Front ultrasonic": "Ultrasonido frontal",
+    "No echo": "Sin eco",
+    "Unavailable": "No disponible",
+    "Waiting for front ultrasonic readings.": "Esperando lecturas del sensor ultrasónico frontal.",
+    "Front obstacle detected. Steering stopped.": "Obstáculo detectado delante. Conducción detenida.",
     "Commands": "Comandos",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "Escribe un comando por línea o sepáralos con comas. Los movimientos sin duración duran 3 segundos.",
     "Inspect": "Inspeccionar",

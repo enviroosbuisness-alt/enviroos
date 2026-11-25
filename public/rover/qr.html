@@ -36,7 +36,8 @@
       margin-top:16px;
       padding-top:12px;
     }
-    .qr-form-footer button { margin-inline-start:auto; }
+    .qr-form-actions { margin-inline-start:auto; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+    #cancelQrEdit { background:transparent; color:inherit; }
     #status { margin:0; font-size:.875rem; overflow-wrap:anywhere; }
     #status:empty { position:absolute; }
 
@@ -49,7 +50,8 @@
     .remove-card { background:transparent; color:inherit; }
     @media (max-width:560px) {
       .qr-form-fields { grid-template-columns:minmax(0, 1fr); gap:14px; }
-      .qr-form-footer button { width:100%; }
+      .qr-form-actions { width:100%; }
+      .qr-form-actions button { flex:1 1 auto; }
     }
   </style>
   <link rel="stylesheet" href="enviroos-theme.css">
@@ -59,7 +61,7 @@
     <a href="index.html">← <span data-rover-text="Mission control">Mission control</span></a>
     <h1 data-rover-text="QR cards">QR cards</h1>
     <p data-rover-text="Print a card and place it where the rover should act.">Print a card and place it where the rover should act.</p>
-    <h2 data-rover-text="Add a QR card">Add a QR card</h2>
+    <h2 id="qrFormTitle" data-rover-text="Add a QR card">Add a QR card</h2>
     <form id="form">
       <div class="qr-form-fields">
         <label class="qr-form-field">
@@ -74,7 +76,10 @@
       </div>
       <div class="qr-form-footer">
         <p role="status" id="status"></p>
-        <button type="submit" data-rover-text="Save card">Save card</button>
+        <div class="qr-form-actions">
+          <button type="button" id="cancelQrEdit" hidden data-rover-text="Cancel">Cancel</button>
+          <button type="submit" id="qrSubmit" data-rover-text="Save card">Save card</button>
+        </div>
       </div>
     </form>
     <h2 data-rover-text="Field cards">Field cards</h2>

@@ -389,13 +389,21 @@
                   mission</button><button type="button" id="directQrStart" hidden>Start QR steering</button><button
                   type="button" id="directQrStop" hidden>Stop QR steering</button>
               </div>
-              <div class="rover-speed-control"><label for="driveSpeed"><span data-rover-text="Drive speed">Drive
+              <div class="rover-speed-control">
+                <div id="piDriveSpeed"><label for="driveSpeed"><span data-rover-text="Drive speed">Drive
                     speed</span> · <output id="driveSpeedValue">128 / 255 PWM</output></label><input id="driveSpeed"
                   type="range" min="0" max="255" step="1" value="128">
                 <p id="driveSpeedFormula">Motor A: 93 · Motor B: 128 PWM</p><small>Automatic tasks hold the selected
-                  speed until they finish.</small>
+                  speed until they finish.</small></div>
+                <div id="mqttDriveSpeed" hidden>
+                  <div><span><span data-rover-text="Forward">Forward</span> / <span data-rover-text="Backward">Backward</span></span><output id="straightDriveSpeed">—</output></div>
+                  <div><span><span data-rover-text="Left">Left</span> / <span data-rover-text="Right">Right</span></span><output id="turnDriveSpeed">—</output></div>
+                </div>
               </div>
+              <p id="frontRange" hidden></p>
               <p id="steerStatus" role="status">Connect the Pi to steer.</p>
+              <button id="resetUltrasonicStop" type="button" class="button" hidden disabled
+                data-rover-text="Reset emergency stop">Reset emergency stop</button>
               <div class="drive-pad" aria-label="Hold to steer"><button data-drive="left" disabled>↑ <span
                     data-rover-text="Left">Left</span></button><button data-drive="forward" disabled>← <span
                     data-rover-text="Forward">Forward</span></button><button data-drive="back" disabled><span
@@ -451,6 +459,14 @@
         <form id="inspectionForm">
           <p class="inspection-note" data-rover-text="Steps run in order. Enter times in seconds.">Steps run in order. Enter times in seconds.</p>
           <ol id="inspectionSteps" class="inspection-steps"></ol>
+          <fieldset id="inspectionThresholds" class="inspection-thresholds" hidden disabled>
+            <legend><span data-rover-text="Nutrient minimums">Nutrient minimums</span> (mg/kg)</legend>
+            <div>
+              <label>N <input id="inspectionMinimumN" type="number" min="0" step="any" required></label>
+              <label>P <input id="inspectionMinimumP" type="number" min="0" step="any" required></label>
+              <label>K <input id="inspectionMinimumK" type="number" min="0" step="any" required></label>
+            </div>
+          </fieldset>
           <p class="inspection-note" data-rover-text="Water sampling runs in 3-second batches. Irrigation is controlled separately by Enviro Advanced.">Water sampling runs in 3-second batches. Irrigation is controlled separately by Enviro Advanced.</p>
           <div class="inspection-footer">
             <button type="button" class="button" id="inspectionAdd" data-rover-text="Add step">Add step</button>
@@ -461,6 +477,7 @@
           </div>
         </form>
         <p id="inspectionStatus" role="status"></p>
+        <p id="inspectionNpkStatus" class="inspection-note" hidden></p>
       </section>
       <details class="panel rover-telemetry" id="roverMqttPanel" hidden>
         <summary><span data-rover-text="ESP32 network readings">ESP32 network readings</span> <small

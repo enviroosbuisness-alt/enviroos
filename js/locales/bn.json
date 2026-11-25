@@ -220,6 +220,18 @@
     "nav_weather": "আবহাওয়া"
   },
   "rover": {
+    "Ultrasonic emergency stop": "আল্ট্রাসনিক জরুরি থামানো",
+    "Reset emergency stop": "জরুরি থামানোর অবস্থা রিসেট করুন",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "সামনের সেন্সরের বাধা সরান এবং ESP32 থামার বিষয়টি নিশ্চিত করা পর্যন্ত অপেক্ষা করুন।",
+    "Edit": "সম্পাদনা করুন",
+    "Edit QR card": "QR কার্ড সম্পাদনা করুন",
+    "Save changes": "পরিবর্তন সংরক্ষণ করুন",
+    "Cancel": "বাতিল করুন",
+    "Front ultrasonic": "সামনের আল্ট্রাসনিক সেন্সর",
+    "No echo": "প্রতিধ্বনি নেই",
+    "Unavailable": "পাওয়া যাচ্ছে না",
+    "Waiting for front ultrasonic readings.": "সামনের আল্ট্রাসনিক সেন্সরের রিডিংয়ের অপেক্ষায়।",
+    "Front obstacle detected. Steering stopped.": "সামনে বাধা শনাক্ত হয়েছে। রোভার থেমেছে।",
     "Commands": "নির্দেশ",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "প্রতি লাইনে একটি নির্দেশ লিখুন বা কমা দিয়ে আলাদা করুন। সময় না দিলে রোভার ৩ সেকেন্ড চলবে।",
     "Inspect": "পরিদর্শন",

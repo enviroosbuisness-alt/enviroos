@@ -91,6 +91,27 @@ let firmwareStatus = '';
 let firmwareStatusRevision = 0;
 let directDrive = null;
 let directTaskUntil = 0;
+// Match the Expanded firmware's front obstacle threshold.
+const obstacleLimitCm = 15;
+const emergencyLimitCm = 5;
+const rangeTimeoutMs = 2500;
+let frontBlocked = false;
+let frontRangeAt = null;
+let frontRangeCm = null;
+let distanceRequestedAt = 0;
+const ultrasonicStopKey = () => 'enviroos.rover.ultrasonicStop.' + roverMqttId;
+function readUltrasonicStop() {
+  try { return localStorage.getItem(ultrasonicStopKey()) === '1'; } catch { return false; }
+}
+let ultrasonicStop = readUltrasonicStop();
+let ultrasonicAcknowledgedAt = null;
+let ultrasonicAttempts = 0;
+let lastUltrasonicAttemptAt = -Infinity;
+function clearUltrasonicConfirmation() {
+  ultrasonicAcknowledgedAt = null;
+  ultrasonicAttempts = 0;
+  lastUltrasonicAttemptAt = -Infinity;
+}
 // Compensate for the observed drive wiring on the Expanded MQTT rover.
 const directions = new Map([
   ['forward', 'R'],
@@ -98,6 +119,7 @@ const directions = new Map([
   ['left', 'B'],
   ['right', 'F'],
 ]);
+const driveSpeeds = {straight: 200, turn: 255};
 const actions = new Map([
   ['pump','PUMPON'], ['pump-off','PUMPOFF'], ['fertilizer','DISPENSE'],
   ['mission','MISSION'], ['cancel','CANCEL'], ['probe-up','NPKUP'],
@@ -116,36 +138,65 @@ const inspectionActions = {
   raise: {min:1, max:120, command:'NPKUP', ack:'NPK LIFT SERVO POSITION 0'},
   water: {min:3, max:30, command:'WATER', ack:'WATER TEST COMPLETE - AVG '},
   fertilizer: {min:1, max:4, command:'PUMPON'},
+  'read-npk': {min:0, max:0, command:'DATA'},
+  dispense: {min:0, max:0, command:'DISPENSE'},
+  'dispense-if-low': {min:0, max:0, command:'DISPENSE'},
 };
+const nutrientKeys = ['n', 'p', 'k'];
+const dispenserSteps = new Set(['dispense', 'dispense-if-low']);
+const npkSampleMaxAgeMs = 30000;
 let inspection = null;
 let inspectionStatus = null;
 let inspectionRecoveryAt = null;
 
 function stopInspection(message, sendStop = true) {
   if (!inspection) return;
-  if (inspection.probeDown || inspection.phase?.action === 'fertilizer') inspectionRecoveryAt = Date.now();
+  if (inspection.probeDown || inspection.phase?.action === 'fertilizer' || inspection.phase?.dispensing) {
+    inspectionRecoveryAt = Date.now();
+  }
   if (sendStop) stopDirect('ESTOP');
   inspection = null;
   inspectionStatus = {...inspectionStatus, state:'failed', message};
   sendRoverTelemetry();
 }
 
-function startInspection(id, steps) {
+function startInspection(id, steps, thresholds) {
   if (typeof id !== 'string' || !Array.isArray(steps) || !steps.length || steps.length > 12) return;
+  function reject(message) {
+    inspectionStatus = {id, state:'failed', message};
+    sendRoverTelemetry();
+  }
   let probeDown = false;
+  let measured = false;
   for (const step of steps) {
     const config = step && Object.hasOwn(inspectionActions, step.action) && inspectionActions[step.action];
     if (!config || !Number.isInteger(step.seconds) || step.seconds < config.min || step.seconds > config.max ||
-        (step.action === 'water' && step.seconds % 3 !== 0) ||
-        (step.action === 'fertilizer' && probeDown)) return;
-    if (step.action === 'lower' || step.action === 'raise') probeDown = step.action === 'lower';
+        (step.action === 'water' && step.seconds % 3 !== 0)) {
+      return reject('Check the inspection step and its duration.');
+    }
+    if (step.action === 'lower' || step.action === 'raise') {
+      probeDown = step.action === 'lower';
+      if (probeDown) measured = false;
+    }
+    if (step.action === 'read-npk') {
+      if (!probeDown) return reject('Lower the NPK arm before reading NPK.');
+      measured = true;
+    }
+    if ((step.action === 'fertilizer' || dispenserSteps.has(step.action)) && probeDown) {
+      return reject('Raise the NPK arm before dispensing fertilizer.');
+    }
+    if (step.action === 'dispense-if-low') {
+      if (!measured) return reject('Add a Read NPK step before conditional dispensing.');
+      if (!nutrientKeys.every(key => Number.isFinite(thresholds?.[key]) && thresholds[key] >= 0)) {
+        return reject('Enter a minimum for N, P and K in mg/kg.');
+      }
+      measured = false;
+    }
   }
   if (probeDown || !directReady() || directBusy() || directDrive || roverReading.probeAngle !== 0) {
-    inspectionStatus = {id, state:'failed', message:'Inspection requires an idle ESP32 and the probe arm at home.'};
-    sendRoverTelemetry();
-    return;
+    return reject('Inspection requires an idle ESP32 and the probe arm at home.');
   }
-  inspection = {steps, index:0, phase:null, probeDown:false};
+  inspection = {steps, thresholds, index:0, phase:null, probeDown:false, npk:null};
   inspectionStatus = {id, state:'running', count:steps.length};
   tickInspection();
 }
@@ -153,7 +204,7 @@ function startInspection(id, steps) {
 function tickInspection() {
   const run = inspection;
   if (!run) return;
-  if (!directReady() || roverReading.mission || roverReading.dispensing) {
+  if (!directReady() || roverReading.mission || (roverReading.dispensing && !run.phase?.dispensing)) {
     stopInspection('Inspection interrupted. Check ESP32 readings.');
     return;
   }
@@ -162,16 +213,64 @@ function tickInspection() {
   const config = inspectionActions[action];
   if (!run.phase) {
     run.phase = {action, seconds, until:now + seconds * 1000, timeout:now + (action === 'water' ? 6500 : 2500)};
-    if (action === 'lower') run.probeDown = true;
-    if (config.command && !publishDirect(config.command)) {
+    const phase = run.phase;
+    inspectionStatus = {...inspectionStatus, step:run.index + 1, action};
+    if (action === 'lower') {
+      run.probeDown = true;
+      run.npk = null;
+      delete inspectionStatus.npk;
+      delete inspectionStatus.lowNutrients;
+    }
+    if (action === 'read-npk') {
+      phase.requestedAt = now;
+      phase.timeout = now + 6500;
+    }
+    let command = config.command;
+    if (dispenserSteps.has(action)) {
+      if (run.probeDown || roverReading.probeAngle !== 0 || roverReading.pump) {
+        stopInspection('Wait for the NPK arm and fertilizer relay to return to idle.');
+        return;
+      }
+      if (action === 'dispense-if-low') {
+        if (!run.npk || now - run.npk.measuredAt > npkSampleMaxAgeMs) {
+          stopInspection('A fresh NPK measurement is required for conditional dispensing.');
+          return;
+        }
+        const low = nutrientKeys.filter(key => run.npk[key] < run.thresholds[key]);
+        inspectionStatus.lowNutrients = low;
+        run.npk = null;
+        if (!low.length) {
+          command = null;
+          phase.confirmed = true;
+        }
+      }
+      if (command) {
+        phase.dispensing = true;
+        phase.timeout = now + 6500;
+      }
+    }
+    if (command && !publishDirect(command)) {
       stopInspection('The inspection command could not be sent.');
       return;
     }
-    inspectionStatus = {...inspectionStatus, step:run.index + 1, action};
     sendRoverTelemetry();
     return;
   }
   const phase = run.phase;
+  if (action === 'read-npk' && !phase.confirmed) {
+    const measuredAt = roverReading.npkMeasuredAt;
+    if (roverSampleAt >= phase.requestedAt && roverReading.probeAngle === 180 &&
+        measuredAt >= phase.requestedAt && measuredAt <= now &&
+        nutrientKeys.every(key => Number.isFinite(roverReading[key]))) {
+      run.npk = Object.fromEntries(nutrientKeys.map(key => [key, roverReading[key]]));
+      run.npk.measuredAt = measuredAt;
+      inspectionStatus.npk = run.npk;
+      phase.confirmed = true;
+    } else if (now >= phase.timeout) {
+      stopInspection('The ESP32 did not provide a fresh NPK measurement.');
+      return;
+    }
+  }
   const probeTarget = action === 'lower' ? 180 : action === 'raise' ? 0 : null;
   if (action === 'water' && phase.confirmed && phase.seconds > 3) {
     phase.seconds -= 3;
@@ -188,7 +287,8 @@ function tickInspection() {
   }
   const probeReported = probeTarget === null ||
     (roverSampleAt >= phase.confirmedAt && roverReading.probeAngle === probeTarget);
-  if (action === 'wait' ? now >= phase.until : phase.confirmed && probeReported &&
+  const dispenserStopped = !phase.dispensing || !roverReading.dispensing;
+  if (action === 'wait' ? now >= phase.until : phase.confirmed && probeReported && dispenserStopped &&
       (action === 'water' || now >= phase.until)) {
     if (action === 'raise') run.probeDown = false;
     if (++run.index === run.steps.length) {
@@ -196,7 +296,7 @@ function tickInspection() {
       inspectionStatus = {...inspectionStatus, state:'completed'};
       sendRoverTelemetry();
     } else run.phase = null;
-  } else if (action !== 'wait' && (!phase.confirmed || !probeReported) && now >= phase.timeout) {
+  } else if (action !== 'wait' && (!phase.confirmed || !probeReported || !dispenserStopped) && now >= phase.timeout) {
     stopInspection('The ESP32 did not confirm the inspection step.');
   }
 }
@@ -204,8 +304,13 @@ function tickInspection() {
 function inspectionFeedback(status) {
   const phase = inspection?.phase;
   if (!phase) return;
-  if (/^(UNKNOWN COMMAND|ROVER OFFLINE|OBSTACLE DETECTED|EMERGENCY STOP)/.test(status)) {
+  if (/^(UNKNOWN COMMAND|ROVER OFFLINE|OBSTACLE DETECTED|EMERGENCY STOP|DISPENSER BUSY)/.test(status)) {
     stopInspection('Inspection interrupted by the ESP32.', !status.startsWith('EMERGENCY STOP'));
+    return;
+  }
+  if (phase.dispensing) {
+    if (status === 'FERTILIZER DISPENSER OPEN') phase.started = true;
+    if (phase.started && status === 'FERTILIZER DISPENSER COMPLETE') phase.confirmed = true;
     return;
   }
   if (phase.action === 'fertilizer') {
@@ -230,21 +335,70 @@ function stopDirect(command = 'STOP') {
   return publishDirect(command);
 }
 
+function sendUltrasonicStop() {
+  if (!ultrasonicStop || ultrasonicAcknowledgedAt !== null || ultrasonicAttempts >= 3 ||
+      !active() || !roverReading?.expanded || roverMqttState !== 'connected' ||
+      Date.now() - lastUltrasonicAttemptAt < 1000) return;
+  lastUltrasonicAttemptAt = Date.now();
+  ultrasonicAttempts++;
+  stopDirect('ESTOP');
+  directTaskUntil = 0;
+}
+
+function canResetUltrasonicStop() {
+  return ultrasonicStop && ultrasonicAcknowledgedAt !== null && directReady() &&
+    roverSampleAt >= ultrasonicAcknowledgedAt && frontRangeFresh() &&
+    frontRangeCm >= obstacleLimitCm && !roverReading.pump && !roverReading.dispensing &&
+    roverReading.mission === 0 && roverReading.probeAngle === 0;
+}
+
+function updateFrontRange(distance) {
+  if (!Number.isFinite(distance)) return;
+  frontRangeAt = Date.now();
+  frontRangeCm = distance;
+  // A missed echo cannot clear an obstacle the sensor already reported.
+  if (distance > 0) frontBlocked = distance < obstacleLimitCm;
+  if (distance > 0 && distance <= emergencyLimitCm && !ultrasonicStop) {
+    ultrasonicStop = true;
+    clearUltrasonicConfirmation();
+    try { localStorage.setItem(ultrasonicStopKey(), '1'); } catch {}
+    sendUltrasonicStop();
+    if (inspection) stopInspection('Ultrasonic emergency stop', false);
+  }
+  if (frontBlocked && directDrive && directDrive.action !== 'reverse') stopDirect();
+}
+
+function frontRangeFresh() {
+  return frontRangeAt !== null && Date.now() - frontRangeAt <= rangeTimeoutMs;
+}
+
 function directReady() {
   return active() && !usesPrivatePiMqtt && roverMqttState === 'connected' &&
     roverReading?.expanded === true && Date.now() - roverSampleAt < 5000;
 }
 
 function directBusy() {
-  return Boolean(inspection) || inspectionRecoveryAt !== null || Date.now() < directTaskUntil || roverReading?.pump || roverReading?.dispensing ||
+  return ultrasonicStop || Boolean(inspection) || inspectionRecoveryAt !== null || Date.now() < directTaskUntil || roverReading?.pump || roverReading?.dispensing ||
     (roverReading?.mission ?? 0) !== 0;
 }
 
 setInterval(() => {
+  sendUltrasonicStop();
   if (!directDrive) return;
   if (!directReady() || directBusy() || Date.now() >= directDrive.expires) {
     stopDirect();
     return;
+  }
+  if (directDrive.action === 'left' && !frontRangeFresh()) {
+    // The wiring maps left to B, which this firmware does not guard locally.
+    stopDirect();
+    sendRoverTelemetry();
+    return;
+  }
+  const now = Date.now();
+  if (now - distanceRequestedAt >= 500) {
+    distanceRequestedAt = now;
+    publishDirect('DISTANCE');
   }
   if (!publishDirect(directDrive.command)) stopDirect();
 }, 250);
@@ -268,6 +422,11 @@ function sendRoverTelemetry() {
     firmwareStatusRevision,
     directReady: directReady(),
     directBusy: Boolean(directBusy()),
+    driveSpeeds,
+    frontBlocked,
+    frontRangeFresh: frontRangeFresh(),
+    ultrasonicStop,
+    ultrasonicResetReady: canResetUltrasonicStop(),
     inspection: inspectionStatus,
   }, location.origin);
 }
@@ -282,6 +441,10 @@ function closeRoverTelemetry() {
   if (inspection) stopInspection("Inspection connection closed.");
   if (directDrive) stopDirect();
   firmwareStatus = '';
+  frontBlocked = false;
+  frontRangeAt = null;
+  frontRangeCm = null;
+  if (ultrasonicStop) clearUltrasonicConfirmation();
   directTaskUntil = 0;
   const client = roverMqttClient;
   roverMqttClient = null;
@@ -306,6 +469,8 @@ function syncRoverTelemetry() {
           if (inspection) stopInspection('Inspection lost the ESP32 connection.');
           directDrive = null;
           firmwareStatus = '';
+          frontRangeAt = null;
+          if (ultrasonicStop) clearUltrasonicConfirmation();
           clearRoverReading();
           roverPresence = 'unknown';
           finishRoverRefresh();
@@ -317,11 +482,18 @@ function syncRoverTelemetry() {
         if (received === topic + '/status') {
           const status = payload.trim().slice(0, 160);
           if (meta.retained) return;
+          const range = /^DISTANCE: (-?\d+(?:\.\d+)?) CM$/.exec(status);
+          if (range && roverReading?.expanded) updateFrontRange(Number(range[1]));
+          if (status.startsWith('OBSTACLE DETECTED')) frontBlocked = true;
+          if (ultrasonicStop && ultrasonicAttempts && status.startsWith('EMERGENCY STOP')) {
+            ultrasonicAcknowledgedAt = Date.now();
+          }
           firmwareStatus = status;
           firmwareStatusRevision++;
           inspectionFeedback(status);
           if (status === 'ROVER OFFLINE') {
             roverPresence = 'offline';
+            frontRangeAt = null;
             clearRoverReading();
             finishRoverRefresh();
           } else if ((status === 'ROVER ONLINE' || status === 'ROVER ONLINE - SEND HELP FOR COMMANDS') && !meta.retained) {
@@ -359,7 +531,9 @@ function syncRoverTelemetry() {
           servoActive: typeof data.servo_active === 'boolean' ? data.servo_active : null,
           probeAngle: angle(data.npk_servo_angle), dispenserAngle: angle(data.dispenser_servo_angle),
           n: number(npk.n_mgkg), p: number(npk.p_mgkg), k: number(npk.k_mgkg),
+          npkMeasuredAt: Number.isFinite(npk.measured_at) ? npk.measured_at * 1000 : null,
         };
+        if (expanded) updateFrontRange(data.distance_cm);
         if (inspectionRecoveryAt !== null && roverSampleAt > inspectionRecoveryAt &&
             roverReading.probeAngle === 0 && !roverReading.pump && !roverReading.dispensing &&
             roverReading.mission === 0) inspectionRecoveryAt = null;
@@ -387,26 +561,37 @@ function finishRoverRefresh() {
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== frame()?.contentWindow) return;
   if (event.data?.type === 'enviroos:rover-inspection') {
-    if (event.data.action === 'start' && !inspection) startInspection(event.data.id, event.data.steps);
+    if (event.data.action === 'start' && !inspection) {
+      startInspection(event.data.id, event.data.steps, event.data.thresholds);
+    }
     if (event.data.action === 'stop' && inspection) stopInspection('Inspection stopped.');
     return;
   }
   if (event.data?.type === 'enviroos:rover-direct') {
-    const {action, speed} = event.data;
+    const {action} = event.data;
     if (action === 'release') {
       if (directDrive) stopDirect();
     } else if (action === 'estop' && active()) {
       stopDirect('ESTOP');
+      if (ultrasonicStop && !ultrasonicAttempts) ultrasonicAttempts = 1;
       if (inspection) stopInspection('Inspection stopped.', false);
       directTaskUntil = 0;
+    } else if (action === 'reset-ultrasonic-stop' && canResetUltrasonicStop()) {
+      ultrasonicStop = false;
+      try { localStorage.removeItem(ultrasonicStopKey()); } catch {}
+      sendRoverTelemetry();
     } else if (directReady() && !inspection) {
       if (action === 'hold') {
         if (directDrive) directDrive.expires = Date.now() + 450;
-      } else if (directions.has(action) && !directBusy() && !directDrive &&
-                 Number.isInteger(speed) && speed > 0 && speed <= 255) {
+      } else if (directions.has(action) && !directBusy() && !directDrive) {
+        if ((action !== 'reverse' && frontBlocked) || (action === 'left' && !frontRangeFresh())) {
+          sendRoverTelemetry();
+          return;
+        }
         const command = directions.get(action);
+        const speed = action === 'left' || action === 'right' ? driveSpeeds.turn : driveSpeeds.straight;
         if (publishDirect('SPEED ' + speed) && publishDirect(command)) {
-          directDrive = {command, expires: Date.now() + 450};
+          directDrive = {action, command, expires: Date.now() + 450};
         }
       } else if (actions.has(action) && !directDrive &&
                  (!directBusy() || ['cancel','pump-off'].includes(action))) {
@@ -444,6 +629,8 @@ window.addEventListener('message', event => {
   if (id !== roverMqttId) {
     closeRoverTelemetry();
     roverMqttId = id;
+    ultrasonicStop = readUltrasonicStop();
+    clearUltrasonicConfirmation();
     try { localStorage.setItem(mqttStorageKey, id); } catch {}
   }
   syncRoverTelemetry();

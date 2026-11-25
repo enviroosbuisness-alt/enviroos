@@ -220,6 +220,18 @@
     "nav_weather": "ಹವಾಮಾನ"
   },
   "rover": {
+    "Ultrasonic emergency stop": "ಅಲ್ಟ್ರಾಸಾನಿಕ್ ತುರ್ತು ನಿಲುಗಡೆ",
+    "Reset emergency stop": "ತುರ್ತು ನಿಲುಗಡೆಯನ್ನು ಮರುಹೊಂದಿಸಿ",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "ಮುಂಭಾಗದ ಸಂವೇದಕದ ಅಡಚಣೆಯನ್ನು ತೆಗೆದುಹಾಕಿ ಮತ್ತು ESP32 ನಿಲುಗಡೆಯನ್ನು ದೃಢಪಡಿಸುವವರೆಗೆ ಕಾಯಿರಿ.",
+    "Edit": "ಸಂಪಾದಿಸಿ",
+    "Edit QR card": "QR ಕಾರ್ಡ್ ಸಂಪಾದಿಸಿ",
+    "Save changes": "ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ",
+    "Cancel": "ರದ್ದುಮಾಡಿ",
+    "Front ultrasonic": "ಮುಂಭಾಗದ ಅಲ್ಟ್ರಾಸಾನಿಕ್ ಸಂವೇದಕ",
+    "No echo": "ಪ್ರತಿಧ್ವನಿ ಇಲ್ಲ",
+    "Unavailable": "ಲಭ್ಯವಿಲ್ಲ",
+    "Waiting for front ultrasonic readings.": "ಮುಂಭಾಗದ ಅಲ್ಟ್ರಾಸಾನಿಕ್ ಸಂವೇದಕದ ಓದುವಿಕೆಗಾಗಿ ಕಾಯುತ್ತಿದೆ.",
+    "Front obstacle detected. Steering stopped.": "ಮುಂದೆ ಅಡಚಣೆ ಪತ್ತೆಯಾಗಿದೆ. ರೋವರ್ ನಿಂತಿದೆ.",
     "Commands": "ಆದೇಶಗಳು",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "ಪ್ರತಿ ಸಾಲಿಗೆ ಒಂದು ಆದೇಶ ಬರೆಯಿರಿ ಅಥವಾ ಅಲ್ಪವಿರಾಮದಿಂದ ಬೇರ್ಪಡಿಸಿ. ಸಮಯ ನೀಡದಿದ್ದರೆ ರೋವರ್ ೩ ಸೆಕೆಂಡು ಚಲಿಸುತ್ತದೆ.",
     "Inspect": "ಪರಿಶೀಲನೆ",

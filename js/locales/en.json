@@ -831,6 +831,18 @@
     "nav_weather": "Weather"
   },
   "rover": {
+    "Ultrasonic emergency stop": "Ultrasonic emergency stop",
+    "Reset emergency stop": "Reset emergency stop",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "Clear the front sensor and wait for the ESP32 to confirm the stop.",
+    "Edit": "Edit",
+    "Edit QR card": "Edit QR card",
+    "Save changes": "Save changes",
+    "Cancel": "Cancel",
+    "Front ultrasonic": "Front ultrasonic",
+    "No echo": "No echo",
+    "Unavailable": "Unavailable",
+    "Waiting for front ultrasonic readings.": "Waiting for front ultrasonic readings.",
+    "Front obstacle detected. Steering stopped.": "Front obstacle detected. Steering stopped.",
     "Commands": "Commands",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.",
     "Inspect": "Inspect",

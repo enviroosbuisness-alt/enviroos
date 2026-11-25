@@ -220,6 +220,18 @@
     "nav_weather": "வானிலை"
   },
   "rover": {
+    "Ultrasonic emergency stop": "அல்ட்ராசோனிக் அவசர நிறுத்தம்",
+    "Reset emergency stop": "அவசர நிறுத்தத்தை மீட்டமை",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "முன்புற சென்சாரின் தடையை அகற்றி, ESP32 நிறுத்தத்தை உறுதிப்படுத்தும் வரை காத்திருக்கவும்.",
+    "Edit": "திருத்து",
+    "Edit QR card": "QR அட்டையைத் திருத்து",
+    "Save changes": "மாற்றங்களைச் சேமி",
+    "Cancel": "ரத்துசெய்",
+    "Front ultrasonic": "முன்புற அல்ட்ராசோனிக் சென்சார்",
+    "No echo": "எதிரொலி இல்லை",
+    "Unavailable": "கிடைக்கவில்லை",
+    "Waiting for front ultrasonic readings.": "முன்புற அல்ட்ராசோனிக் சென்சாரின் அளவீட்டுக்காகக் காத்திருக்கிறது.",
+    "Front obstacle detected. Steering stopped.": "முன்னால் தடை கண்டறியப்பட்டது. ரோவர் நின்றது.",
     "Commands": "கட்டளைகள்",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "ஒரு வரிக்கு ஒரு கட்டளையை எழுதவும் அல்லது காற்புள்ளியால் பிரிக்கவும். நேரம் குறிப்பிடாவிட்டால் ரோவர் ௩ வினாடிகள் நகரும்.",
     "Inspect": "ஆய்வு",

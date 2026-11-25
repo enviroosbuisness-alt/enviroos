@@ -440,12 +440,15 @@ window.EnviroOS = window.EnviroOS || {};
   };
 
   // Plain-words summary builder for Home TTS.
+  U.homeIssues = () => (U.analysis?.issues || []).filter(id => !U.hasRover() || id !== 'heat');
   U.sayHome = () => {
     const s = U.snapshot, a = U.analysis;
     if (!s || !a) return '';
     const info = U.nodeInfo();
-    const head = a.issues.length === 0 ? t('farm_looks_good') : `${a.issues.length} ${a.issues.length === 1 ? t('thing_to_check') : t('things_to_check')}`;
-    return `${info.cropName}. ${head}. ${t('cond_water')} ${t(a.water.badgeKey)}. ${t('cond_heat')} ${t(a.heat.badgeKey)}. ${t('cond_soil')} ${t(a.nutrients.badgeKey)}.`;
+    const count = U.homeIssues().length;
+    const head = count === 0 ? t('farm_looks_good') : `${count} ${count === 1 ? t('thing_to_check') : t('things_to_check')}`;
+    const heat = U.hasRover() ? '' : `${t('cond_heat')} ${t(a.heat.badgeKey)}. `;
+    return `${info.cropName}. ${head}. ${t('cond_water')} ${t(a.water.badgeKey)}. ${heat}${t('cond_soil')} ${t(a.nutrients.badgeKey)}.`;
   };
 
   /* ---------- status presentation (logic codes -> words) ---------- */
@@ -580,7 +583,8 @@ window.EnviroOS = window.EnviroOS || {};
       btnTheme.title = dark ? t('theme_light') : t('theme_dark');
       btnTheme.setAttribute('aria-label', btnTheme.title);
     }
-    $('btn-alerts').innerHTML = U.icons.bell + (U.alertCount > 0 ? `<span class="count">${fmtInt(U.alertCount)}</span>` : '');
+    const alertCount = U.route === 'home' ? U.homeIssues().length : U.alertCount;
+    $('btn-alerts').innerHTML = U.icons.bell + (alertCount > 0 ? `<span class="count">${fmtInt(alertCount)}</span>` : '');
     const btnMarket = $('btn-market');
     if (btnMarket) {
       const cCount = (U.marketCartCount && U.marketCartCount()) || 0;

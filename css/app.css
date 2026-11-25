@@ -947,6 +947,10 @@ body.is-offline .offlinebar { display: flex; }
 @media (min-width: 640px) {
   .grid2 { grid-template-columns: repeat(2, 1fr); align-items: stretch; }
 }
+.grid2.rover-home-status { grid-template-columns: 1fr; }
+@media (min-width: 800px) {
+  .grid2.rover-home-status { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 .stcard {
   width: 100%;
   text-align: left;

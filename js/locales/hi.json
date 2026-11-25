@@ -798,6 +798,18 @@
     "nav_weather": "मौसम"
   },
   "rover": {
+    "Ultrasonic emergency stop": "अल्ट्रासोनिक आपातकालीन रोक",
+    "Reset emergency stop": "आपातकालीन रोक रीसेट करें",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "सामने के सेंसर से बाधा हटाएँ और ESP32 की रोक की पुष्टि का इंतज़ार करें।",
+    "Edit": "संपादित करें",
+    "Edit QR card": "QR कार्ड संपादित करें",
+    "Save changes": "बदलाव सहेजें",
+    "Cancel": "रद्द करें",
+    "Front ultrasonic": "सामने का अल्ट्रासोनिक सेंसर",
+    "No echo": "प्रतिध्वनि नहीं मिली",
+    "Unavailable": "उपलब्ध नहीं",
+    "Waiting for front ultrasonic readings.": "सामने के अल्ट्रासोनिक सेंसर की रीडिंग का इंतज़ार है।",
+    "Front obstacle detected. Steering stopped.": "सामने बाधा मिली। रोवर रुक गया।",
     "Commands": "कमांड",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "हर पंक्ति में एक कमांड लिखें या उन्हें कॉमा से अलग करें। समय न देने पर रोवर 3 सेकंड चलेगा।",
     "Inspect": "निरीक्षण",

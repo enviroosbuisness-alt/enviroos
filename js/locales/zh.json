@@ -229,6 +229,18 @@
     "nav_weather": "天气"
   },
   "rover": {
+    "Ultrasonic emergency stop": "超声波紧急停止",
+    "Reset emergency stop": "解除紧急停止",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "清除前方传感器前的障碍，并等待 ESP32 确认停止。",
+    "Edit": "编辑",
+    "Edit QR card": "编辑二维码卡片",
+    "Save changes": "保存更改",
+    "Cancel": "取消",
+    "Front ultrasonic": "前置超声波",
+    "No echo": "无回波",
+    "Unavailable": "不可用",
+    "Waiting for front ultrasonic readings.": "正在等待前置超声波测距数据。",
+    "Front obstacle detected. Steering stopped.": "检测到前方障碍，已停止行驶。",
     "Commands": "指令",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "每行输入一条指令，或用逗号分隔。未指定时长的移动持续 3 秒。",
     "Inspect": "检查",

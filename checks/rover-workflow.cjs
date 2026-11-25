@@ -128,10 +128,10 @@ const assert = require('node:assert/strict');
   await page.evaluate(()=>{
     const {onMessage}=roverTestClient.options;
     onMessage('farmrover/device01/status','ROVER ONLINE - SEND HELP FOR COMMANDS');
-    window.emitExpandedSample = (busy = true, probeAngle = 45) => roverTestClient.options.onMessage('farmrover/device01/data',JSON.stringify({
-      water_raw:1344, water_avg:1200, temperature_raw:812, distance_cm:14.2,
-      pump:false, dispensing:busy, npk_servo_angle:probeAngle, dispenser_servo_angle:90,
-      mission:busy ? 3 : 0, speed:220
+    window.emitExpandedSample = (busy = true, probeAngle = 45, distance = 40, npk, dispensing = busy) => roverTestClient.options.onMessage('farmrover/device01/data',JSON.stringify({
+      water_raw:1344, water_avg:1200, temperature_raw:812, distance_cm:distance,
+      pump:false, dispensing, npk_servo_angle:probeAngle, dispenser_servo_angle:90,
+      mission:busy ? 3 : 0, speed:220, npk
     }));
     emitExpandedSample();
   });
@@ -143,8 +143,10 @@ const assert = require('node:assert/strict');
   assert.equal(await rover.$eval('#connection',e=>e.classList.contains('live')),false);
   await page.evaluate(()=>emitExpandedSample(false));
   await rover.waitForFunction(()=>!document.querySelector('[data-drive="forward"]').disabled);
-  await rover.$eval('#driveSpeed', input=>{input.value='220';input.dispatchEvent(new Event('input'));});
-  for (const [direction, command] of [['forward','R'], ['left','B'], ['right','F'], ['back','L']]) {
+  assert(await rover.$eval('#piDriveSpeed', panel=>panel.hidden));
+  assert.equal(await rover.$eval('#straightDriveSpeed', output=>output.textContent),'200 PWM');
+  assert.equal(await rover.$eval('#turnDriveSpeed', output=>output.textContent),'255 PWM');
+  for (const [direction, command, pwm] of [['forward','R',200], ['left','B',255], ['right','F',255], ['back','L',200]]) {
     await page.evaluate(()=>{roverTestPublished.length=0;});
     const selector = `[data-drive="${direction}"]`;
     await rover.$eval(selector, button=>button.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'})));
@@ -153,9 +155,48 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='STOP');
     const sent = await page.evaluate(()=>roverTestPublished.map(({topic,payload})=>[topic,payload]));
     assert(sent.every(([topic])=>topic==='farmrover/device01/cmd'));
-    assert.equal(sent[0][1],'SPEED 220');
-    assert(sent.slice(1,-1).every(([, payload])=>payload===command));
+    assert.equal(sent[0][1],'SPEED ' + pwm);
+    assert(sent.slice(1,-1).every(([, payload])=>payload===command || payload === 'DISTANCE'));
   }
+  await page.evaluate(()=>{roverTestPublished.length=0;});
+  await rover.$eval('[data-drive="left"]', button=>button.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'})));
+  await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='DISTANCE'));
+  await page.evaluate(()=>roverTestClient.options.onMessage('farmrover/device01/status','DISTANCE: 12.0 CM'));
+  await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='STOP');
+  await rover.waitForFunction(()=>document.querySelector('[data-drive="forward"]').disabled &&
+    document.querySelector('[data-drive="left"]').disabled &&
+    document.querySelector('[data-drive="right"]').disabled &&
+    !document.querySelector('[data-drive="back"]').disabled);
+  await page.evaluate(()=>emitExpandedSample(false,45,-1));
+  await rover.waitForFunction(()=>document.querySelector('#frontRange').textContent.includes('No echo'));
+  assert(await rover.$eval('[data-drive="left"]', button=>button.disabled));
+  await page.evaluate(()=>emitExpandedSample(false,45,40));
+  await rover.waitForFunction(()=>!document.querySelector('[data-drive="left"]').disabled);
+  const lastStop = await page.evaluate(()=>roverTestPublished.findLastIndex(item=>item.payload==='STOP'));
+  assert.equal(await page.evaluate(last=>roverTestPublished.slice(last+1).some(item=>item.payload==='B'),lastStop), false);
+  await page.evaluate(()=>{roverTestPublished.length=0;emitExpandedSample(false,0,5.1);});
+  await rover.waitForFunction(()=>!document.querySelector('[data-drive="back"]').disabled);
+  await rover.$eval('[data-drive="back"]', button=>button.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'})));
+  await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='L'));
+  await page.evaluate(()=>roverTestClient.options.onMessage('farmrover/device01/status','DISTANCE: 5.0 CM'));
+  await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='ESTOP');
+  await rover.waitForFunction(()=>document.querySelector('#steerStatus').textContent==='Ultrasonic emergency stop' &&
+    [...document.querySelectorAll('[data-drive]')].every(button=>button.disabled));
+  await page.evaluate(()=>emitExpandedSample(false,0,40));
+  assert(await rover.$eval('#resetUltrasonicStop', button=>button.disabled));
+  await page.evaluate(()=>{
+    roverTestClient.options.onMessage('farmrover/device01/status','EMERGENCY STOP - MOTORS/PUMP/SERVOS STOPPED');
+    emitExpandedSample(false,0,-1);
+  });
+  await rover.waitForFunction(()=>document.querySelector('#frontRange').textContent.includes('No echo'));
+  assert(await rover.$eval('#resetUltrasonicStop', button=>button.disabled));
+  await page.evaluate(()=>emitExpandedSample(false,0,40));
+  await rover.waitForFunction(()=>!document.querySelector('#resetUltrasonicStop').disabled);
+  assert(await rover.$eval('[data-drive="back"]', button=>button.disabled));
+  await rover.$eval('#resetUltrasonicStop', button=>button.click());
+  await rover.waitForFunction(()=>!document.querySelector('[data-drive="forward"]').disabled);
+  const afterEmergency = await page.evaluate(()=>roverTestPublished.slice(roverTestPublished.findIndex(item=>item.payload==='ESTOP')+1));
+  assert(!afterEmergency.some(item=>item.payload==='L'));
   await rover.$eval('[data-mqtt-action="pump"]', button=>button.click());
   await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='PUMPON');
   assert(await rover.$eval('[data-drive="forward"]', button=>button.disabled));
@@ -196,12 +237,67 @@ const assert = require('node:assert/strict');
   await rover.waitForFunction(()=>document.querySelector('#inspectionStatus').textContent==='Inspection complete.');
   assert.deepEqual(await page.evaluate(()=>roverTestPublished.map(item=>item.payload)),['NPKDOWN','WATER','WATER','NPKUP']);
 
-  const rawSpeed = await rover.$eval('#driveSpeed', input=>input.value);
+  await rover.evaluate(()=>{
+    const selections = document.querySelectorAll('#inspectionSteps li select');
+    ['lower','read-npk','raise','dispense-if-low'].forEach((value,index)=>{
+      selections[index].value = value;
+      selections[index].dispatchEvent(new Event('change'));
+    });
+    for (const nutrient of ['N','P','K']) document.querySelector('#inspectionMinimum'+nutrient).value = '10';
+  });
+  for (const potassium of [9, 10, null]) {
+    await page.evaluate(()=>{roverTestPublished.length=0;emitExpandedSample(false,0);});
+    await rover.waitForFunction(()=>!document.querySelector('#inspectionRun').disabled);
+    await rover.$eval('#inspectionRun', button=>button.click());
+    await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='NPKDOWN');
+    await page.evaluate(()=>{
+      roverTestClient.options.onMessage('farmrover/device01/status','NPK LIFT SERVO POSITION 180');
+      emitExpandedSample(false,180);
+    });
+    await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='DATA');
+    await page.evaluate(k=>{
+      const npk = {ok:true,n_mgkg:20,p_mgkg:30,k_mgkg:k ?? 0};
+      const measured_at = Date.now()/1000;
+      emitExpandedSample(false,180,40,{...npk,measured_at:measured_at-60});
+      if (k !== null) emitExpandedSample(false,180,40,{...npk,measured_at});
+      else window.inspectionSampleTimer=setInterval(()=>emitExpandedSample(false,180,40,npk),1000);
+    },potassium);
+    if (potassium === null) {
+      await rover.waitForFunction(()=>document.querySelector('#inspectionStatus').textContent.includes('fresh NPK measurement'));
+      assert.equal(await page.evaluate(()=>roverTestPublished.some(item=>item.payload==='DISPENSE')),false);
+      await page.evaluate(()=>{clearInterval(inspectionSampleTimer);emitExpandedSample(false,0);});
+      continue;
+    }
+    await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='NPKUP');
+    assert.equal(await page.evaluate(()=>roverTestPublished.some(item=>item.payload==='DISPENSE')),false);
+    await page.evaluate(()=>{
+      roverTestClient.options.onMessage('farmrover/device01/status','NPK LIFT SERVO POSITION 0');
+      emitExpandedSample(false,0);
+    });
+    if (potassium === 9) {
+      await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='DISPENSE');
+      await rover.waitForFunction(()=>document.querySelector('#inspectionNpkStatus').textContent.includes('Below minimum · K'));
+      await page.evaluate(()=>{
+        roverTestClient.options.onMessage('farmrover/device01/status','FERTILIZER DISPENSER OPEN');
+        emitExpandedSample(false,0,40,undefined,true);
+      });
+      assert(await rover.$eval('[data-drive="forward"]', button=>button.disabled));
+      await page.evaluate(()=>{
+        roverTestClient.options.onMessage('farmrover/device01/status','FERTILIZER DISPENSER COMPLETE');
+        emitExpandedSample(false,0,40,undefined,false);
+      });
+    } else {
+      await rover.waitForFunction(()=>document.querySelector('#inspectionNpkStatus').textContent.includes('Fertilizer skipped'));
+      assert.equal(await page.evaluate(()=>roverTestPublished.some(item=>item.payload==='DISPENSE')),false);
+    }
+    await rover.waitForFunction(()=>document.querySelector('#inspectionStatus').textContent==='Inspection complete.');
+  }
+
   await page.evaluate(()=>{EnviroOS.i18n.setLang('hi'); EnviroOS.UI.render();});
   await rover.waitForFunction(()=>document.documentElement.lang==='hi' &&
     document.querySelector('#manualMode').textContent==='मैनुअल संचालन');
-  assert.match(await rover.$eval('#driveSpeedValue',el=>el.textContent),/२५५/);
-  assert.equal(await rover.$eval('#driveSpeed',input=>input.value),rawSpeed);
+  assert.match(await rover.$eval('#straightDriveSpeed',el=>el.textContent),/२००/);
+  assert.match(await rover.$eval('#turnDriveSpeed',el=>el.textContent),/२५५/);
   assert.equal(await page.evaluate(()=>EnviroOS.i18n.number(42)),'४२');
   await page.evaluate(()=>{EnviroOS.i18n.setLang('ta'); EnviroOS.UI.render();});
   await rover.waitForFunction(()=>document.documentElement.lang==='ta' &&
@@ -256,12 +352,15 @@ const assert = require('node:assert/strict');
   ];
   assert.equal(await rover.$('#directQrTiming'), null);
   await rover.waitForFunction(()=>!document.querySelector('#directQrStart').disabled);
+  await page.evaluate(()=>{window.qrSampleTimer = setInterval(()=>emitExpandedSample(false), 800);});
   await rover.$eval('#directQrStart', button=>button.click());
   await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='B'));
+  assert.equal(await page.evaluate(()=>roverTestPublished[roverTestPublished.findIndex(item=>item.payload==='B')-1]?.payload),'SPEED 255');
   await page.evaluate(()=>emitExpandedSample(false));
   await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='STOP'));
+  await page.evaluate(()=>clearInterval(qrSampleTimer));
   const [commands, elapsed] = await page.evaluate(()=>{
-    const moves = roverTestPublished.filter(item=>!item.payload.startsWith('SPEED'));
+    const moves = roverTestPublished.filter(item=>!item.payload.startsWith('SPEED') && item.payload !== 'DISTANCE');
     return [moves.map(item=>item.payload), moves.at(-1).time - moves[0].time];
   });
   assert(commands.slice(0,-1).every(command=>command==='B'));
@@ -290,6 +389,10 @@ const assert = require('node:assert/strict');
   assert.equal(await page.evaluate(()=>roverTestPublished.some(item=>['R','F'].includes(item.payload))),false);
   await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='R'));
   await page.waitForFunction(()=>roverTestPublished.some(item=>item.payload==='F'));
+  assert.deepEqual(await page.evaluate(()=>{
+    const sent=roverTestPublished.map(item=>item.payload);
+    return ['R','F'].map(direction=>sent[sent.indexOf(direction)-1]);
+  }),['SPEED 200','SPEED 255']);
   const commandsAfterFirstStop = await page.evaluate(()=>{
     const moves = roverTestPublished.map(item=>item.payload).filter(payload=>!payload.startsWith('SPEED'));
     return moves.slice(moves.indexOf('STOP') + 1);
@@ -297,7 +400,18 @@ const assert = require('node:assert/strict');
   assert.equal(commandsAfterFirstStop[0], 'MISSION');
   assert(commandsAfterFirstStop.indexOf('R') < commandsAfterFirstStop.indexOf('STOP'));
   assert(commandsAfterFirstStop.indexOf('STOP') < commandsAfterFirstStop.indexOf('F'));
+  await page.evaluate(()=>emitExpandedSample(false,0,4.9));
+  await rover.waitForFunction(()=>document.querySelector('#autoDescription').textContent==='Ultrasonic emergency stop');
+  await page.waitForFunction(()=>roverTestPublished.at(-1)?.payload==='ESTOP');
   qrScan = [{payload:'stop', direction:'stop', area:.01}];
+  await page.evaluate(()=>{
+    roverTestClient.options.onMessage('farmrover/device01/status','EMERGENCY STOP - MOTORS/PUMP/SERVOS STOPPED');
+    emitExpandedSample(false,0,40);
+  });
+  await rover.waitForFunction(()=>!document.querySelector('#resetUltrasonicStop').disabled);
+  await rover.$eval('#resetUltrasonicStop', button=>button.click());
+  await rover.waitForFunction(()=>!document.querySelector('#directQrStart').disabled);
+  await rover.$eval('#directQrStart', button=>button.click());
   await rover.waitForFunction(()=>document.querySelector('#autoDescription').textContent==='Stopped by QR card.');
   qrScan = [];
   await rover.$eval('#manualMode', button=>button.click());

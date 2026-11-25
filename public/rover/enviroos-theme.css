@@ -258,6 +258,8 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .rover-settings-group dd {font-size:13px}
 .enviro-ui .rover-speed-control {display:block;margin:8px 0;padding:8px 10px}
 .enviro-ui .rover-speed-control label {display:flex;justify-content:space-between;gap:6px;font-size:12px}
+#mqttDriveSpeed > div {display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:650}
+#mqttDriveSpeed > div + div {margin-block-start:4px}
 .enviro-ui .rover-speed-control input {display:block;min-height:26px;margin:0}
 #driveSpeedFormula,.rover-speed-control small {display:none}
 .enviro-ui .drive-pad [data-drive="right"] {grid-column:3;grid-row:2}
@@ -290,6 +292,9 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .simple-rover .rover-settings-button {display:inline-flex;align-items:center;gap:6px}
 .simple-rover .rover-settings-button svg {width:17px;height:17px}
 .simple-rover #steerStatus:empty {display:none}
+.simple-rover #frontRange {margin:6px 0 0;color:var(--enviro-sub);font-size:12px}
+.simple-rover #resetUltrasonicStop {margin-block:0 8px}
+.simple-rover #resetUltrasonicStop[hidden] {display:none}
 .simple-rover .rover-speed-control {margin:3px 0 8px}
 .simple-rover .vision .panel-heading {padding-bottom:8px}
 @media(max-width:660px){
@@ -377,6 +382,11 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .inspection-steps { margin:0; padding:0; list-style:none; display:grid; gap:6px; max-width:700px; }
 .inspection-steps li { display:grid; grid-template-columns:2ch minmax(0,2fr) minmax(76px,1fr) auto; gap:8px; align-items:center; }
 .inspection-steps input,.inspection-steps select { width:100%; min-width:0; padding-inline:8px; }
+.inspection-thresholds { margin:10px 0; padding:8px 10px 10px; min-width:0; max-width:700px;
+  border:1px solid var(--enviro-line); border-radius:10px; }
+.inspection-thresholds > div { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.inspection-thresholds label { display:grid; gap:4px; font-size:13px; }
+.inspection-thresholds input { width:100%; min-width:0; padding-inline:8px; }
 .inspection-footer { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .inspection-footer label { display:inline-flex; gap:6px; align-items:center; margin-inline-end:auto; font-size:13px; }
 .enviro-ui .inspection-footer input[type="checkbox"] { min-height:0; }

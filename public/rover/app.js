@@ -579,7 +579,8 @@ $('payloadServo360').onclick = () => testServo('servo360');
 $('payloadServoDispenser').onclick = () => testServo('servo_dispenser');
 
 async function startDispensing(kind) {
-  if (directQr || mqttDisplay?.inspection?.state === 'running' || dispensingPending || $(kind + 'PumpStart').disabled) return;
+  if (directQr || (directMode() && mqttDisplay?.ultrasonicStop) ||
+      mqttDisplay?.inspection?.state === 'running' || dispensingPending || $(kind + 'PumpStart').disabled) return;
   if (kind === 'fertilizer' && directMode()) {
     sendDirect('fertilizer');
     return;
@@ -653,7 +654,10 @@ let directQrStatus = '';
 const inspectionFields = {
   wait:['Wait',120,1], lower:['Lower NPK arm',120,1], water:['Sample water input',30,3],
   raise:['Raise NPK arm',120,1], fertilizer:['Run fertilizer relay',4,1],
+  'read-npk':['Read NPK',0,0], dispense:['Dispense fertilizer',0,0],
+  'dispense-if-low':['Dispense fertilizer if NPK is low',0,0],
 };
+const inspectionNutrients = ['N','P','K'];
 const inspectionKey = 'enviroRover.inspection';
 const nextInspectionId = () => Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-');
 const inspectionDefaults = [{action:'wait',seconds:1},{action:'lower',seconds:1},
@@ -665,8 +669,16 @@ try {
   if (saved?.steps?.length && saved.steps.every(step => Object.hasOwn(inspectionFields, step.action))) inspectionSaved = saved;
 } catch {}
 
-function sendInspection(action, id, steps) {
-  window.parent.postMessage({type:'enviroos:rover-inspection',action,id,steps}, location.origin);
+function sendInspection(action, id, routine) {
+  window.parent.postMessage({type:'enviroos:rover-inspection',action,id,
+    steps:routine?.steps,thresholds:routine?.thresholds}, location.origin);
+}
+
+function updateInspectionThresholds() {
+  const conditional = [...$('inspectionSteps').querySelectorAll('select')]
+    .some(select => select.value === 'dispense-if-low');
+  $('inspectionThresholds').hidden = !conditional;
+  $('inspectionThresholds').disabled = !conditional;
 }
 
 function addInspectionStep(step = inspectionDefaults[0]) {
@@ -694,14 +706,16 @@ function addInspectionStep(step = inspectionDefaults[0]) {
     seconds.min = initial;
     seconds.step = action.value === 'water' ? 3 : 1;
     seconds.max = max;
-    seconds.value = value >= initial ? value : initial;
+    seconds.disabled = max === 0;
+    seconds.value = max === 0 ? '' : value >= initial ? value : initial;
   }
   action.value = step.action;
   updateTiming(step.seconds);
-  action.onchange = () => updateTiming();
+  action.onchange = () => { updateTiming(); updateInspectionThresholds(); };
   function renumber() {
     [...list.children].forEach((item, i) => item.firstElementChild.textContent = roverNumber(i + 1));
     $('inspectionAdd').disabled = list.children.length >= 12;
+    updateInspectionThresholds();
   }
   remove.onclick = () => { row.remove(); renumber(); };
   row.append(number, action, seconds, remove);
@@ -715,18 +729,38 @@ function saveInspection() {
     seconds: Number(row.children[2].value),
   }));
   let probeDown = false;
+  let measured = false;
   for (const {action} of steps) {
-    if (action === 'lower' || action === 'raise') probeDown = action === 'lower';
-    if (action === 'fertilizer' && probeDown) {
-      setText('inspectionStatus', 'Raise the probe before running the fertilizer relay.');
+    if (action === 'lower' || action === 'raise') {
+      probeDown = action === 'lower';
+      if (probeDown) measured = false;
+    }
+    if (action === 'read-npk') {
+      if (!probeDown) {
+        setText('inspectionStatus', 'Lower the NPK arm before reading NPK.');
+        return false;
+      }
+      measured = true;
+    }
+    if (['fertilizer','dispense','dispense-if-low'].includes(action) && probeDown) {
+      setText('inspectionStatus', 'Raise the NPK arm before dispensing fertilizer.');
       return false;
+    }
+    if (action === 'dispense-if-low') {
+      if (!measured) {
+        setText('inspectionStatus', 'Add a Read NPK step before conditional dispensing.');
+        return false;
+      }
+      measured = false;
     }
   }
   if (!steps.length || probeDown) {
     setText('inspectionStatus', probeDown ? 'Add a Raise NPK arm step before finishing.' : 'Add at least one inspection step.');
     return false;
   }
-  const routine = {steps, useQr:$('inspectionUseQr').checked};
+  const thresholds = Object.fromEntries(inspectionNutrients.map(symbol =>
+    [symbol.toLowerCase(), $('inspectionMinimum' + symbol).valueAsNumber]));
+  const routine = {steps, thresholds, useQr:$('inspectionUseQr').checked};
   try { localStorage.setItem(inspectionKey, JSON.stringify(routine)); }
   catch { setText('inspectionStatus', 'This browser could not save the inspection routine.'); return false; }
   inspectionSaved = routine;
@@ -739,6 +773,15 @@ function renderInspectionControls(ready, busy) {
   const running = operation?.state === 'running';
   $('inspectionRun').disabled = !ready || busy || Boolean(directQr || mqttHold || inspectionRequest);
   $('inspectionStop').hidden = !running;
+  const npk = $('inspectionNpkStatus');
+  npk.hidden = !operation?.npk;
+  if (operation?.npk) {
+    const values = inspectionNutrients.map(code => code + ' ' + roverNumber(operation.npk[code.toLowerCase()], 1));
+    const low = operation.lowNutrients;
+    const decision = low?.length ? roverText('Below minimum') + ' · ' + low.join(', ').toUpperCase() :
+      low ? roverText('NPK meets the minimums. Fertilizer skipped.') : '';
+    npk.textContent = values.join(' · ') + ' mg/kg' + (decision ? ' — ' + decision : '');
+  }
   $('inspectionRun').title = ready ? '' : roverText('Connect the ESP32 over MQTT to run an inspection.');
   if (running && operation.step) {
     const label = roverText(inspectionFields[operation.action]?.[0] || 'Inspection');
@@ -752,6 +795,9 @@ function renderInspectionControls(ready, busy) {
 
 let renderedInspection;
 for (const step of inspectionSaved?.steps || inspectionDefaults) addInspectionStep(step);
+for (const symbol of inspectionNutrients) {
+  $('inspectionMinimum' + symbol).value = inspectionSaved?.thresholds?.[symbol.toLowerCase()] ?? '';
+}
 $('inspectionUseQr').checked = Boolean(inspectionSaved?.useQr);
 $('inspectionAdd').onclick = () => addInspectionStep();
 $('inspectionForm').onsubmit = event => { event.preventDefault(); saveInspection(); };
@@ -761,7 +807,7 @@ $('inspectionRun').onclick = () => {
   inspectionRequest = id;
   $('inspectionRun').disabled = true;
   setText('inspectionStatus', 'Starting inspection…');
-  sendInspection('start', id, inspectionSaved.steps);
+  sendInspection('start', id, inspectionSaved);
   setTimeout(() => {
     if (inspectionRequest !== id) return;
     inspectionRequest = null;
@@ -770,13 +816,13 @@ $('inspectionRun').onclick = () => {
 };
 $('inspectionStop').onclick = () => sendInspection('stop');
 
-function stopDirectQr(status = '') {
+function stopDirectQr(status = '', sendStop = true) {
   if (!directQr) return;
   const inspecting = directQr.task?.action === 'inspect' &&
     (!directQr.task.completed || mqttDisplay?.directBusy);
   directQr = null;
   directQrStatus = status;
-  sendDirect(inspecting ? 'estop' : 'release');
+  if (sendStop) sendDirect(inspecting ? 'estop' : 'release');
 }
 
 const qrMovements = ['left', 'right', 'forward', 'backward'];
@@ -789,9 +835,21 @@ function validQrStep({action, seconds}) {
   );
 }
 
+function frontSteeringInterlock(direction) {
+  if (!direction || direction === 'reverse') return '';
+  if (mqttDisplay?.frontBlocked) return 'Front obstacle detected. Steering stopped.';
+  if (direction === 'left' && !mqttDisplay?.frontRangeFresh) return 'Waiting for front ultrasonic readings.';
+  return '';
+}
+
 function startDirectQrStep(run, now) {
   const {action, seconds} = run.steps[run.step];
   const direction = action === 'backward' ? 'reverse' : qrMovements.includes(action) ? action : null;
+  const blocked = frontSteeringInterlock(direction);
+  if (blocked) {
+    stopDirectQr(blocked);
+    return;
+  }
   if (direction && now - run.lastScan > QR_MOVING_SCAN_TIMEOUT_MS) {
     stopDirectQr('QR steering stopped because the camera scan became stale.');
     return;
@@ -806,9 +864,9 @@ function startDirectQrStep(run, now) {
       const budget = inspectionSaved.steps.reduce((total, step) =>
         total + (step.action === 'water' ? step.seconds * 3 : step.seconds + 8), 8);
       run.task.finishBy = now + budget * 1000;
-      sendInspection('start', run.task.inspectionId, inspectionSaved.steps);
+      sendInspection('start', run.task.inspectionId, inspectionSaved);
     } else sendDirect('mission');
-  } else if (direction) sendDirect(direction, run.speed);
+  } else if (direction) sendDirect(direction);
   else sendDirect('release');
   directQrStatus = run.label + ' · ' + roverNumber(run.step + 1) + '/' +
     roverNumber(run.steps.length) + ' · ' + roverText(({inspect:'Inspect', wait:'Wait', stop:'Stop',
@@ -893,15 +951,18 @@ $('directQrStart').onclick = () => {
   if ($('directQrStart').disabled) return;
   releaseDirect();
   directQrStatus = 'Scanning for an eligible QR card.';
-  directQr = {device:mqttDisplay.id, speed:drivePWM, lastScan:0, nextScan:0,
+  directQr = {device:mqttDisplay.id, lastScan:0, nextScan:0,
     consumed:new Map(), task:null};
   updateCameraQR();
 };
 $('directQrStop').onclick = () => stopDirectQr('QR steering stopped.');
 
-const sendDirect = (action, speed) => window.parent.postMessage({
-  type:'enviroos:rover-direct', action, speed,
+const sendDirect = (action) => window.parent.postMessage({
+  type:'enviroos:rover-direct', action,
 }, location.origin);
+$('resetUltrasonicStop').onclick = () => {
+  if (!$('resetUltrasonicStop').disabled) sendDirect('reset-ultrasonic-stop');
+};
 function releaseDirect() {
   if (!mqttHold) return;
   mqttHold = null;
@@ -922,27 +983,47 @@ function renderDirectControls() {
   document.documentElement.classList.toggle('direct-mqtt-control', direct);
   const ready = direct && mqttDisplay?.directReady;
   const busy = Boolean(mqttDisplay?.directBusy);
+  const ultrasonicStop = direct && mqttDisplay?.ultrasonicStop;
+  const reset = $('resetUltrasonicStop');
+  reset.hidden = !ultrasonicStop;
+  reset.disabled = !mqttDisplay?.ultrasonicResetReady;
+  reset.title = reset.disabled ? roverText('Clear the front sensor and wait for the ESP32 to confirm the stop.') : '';
+  const range = $('frontRange');
+  range.hidden = !direct;
+  $('piDriveSpeed').hidden = direct;
+  $('mqttDriveSpeed').hidden = !direct;
   renderInspectionControls(ready, busy);
   if (!ready || busy) releaseDirect();
   if (!direct && directQr) stopDirectQr();
   if (direct) {
+    const speeds = mqttDisplay.driveSpeeds;
+    $('straightDriveSpeed').textContent = roverNumber(speeds?.straight) + ' PWM';
+    $('turnDriveSpeed').textContent = roverNumber(speeds?.turn) + ' PWM';
     setText('taskTitle', 'ESP32 control over MQTT');
     setText('taskSummary', connected ? 'Pi camera connected' : 'Pi camera disconnected');
     $('taskEmergencyStop').hidden = false;
     $('taskEmergencyStop').disabled = mqttDisplay.connection !== 'connected';
-    setText('steerStatus', busy ? 'Firmware operation in progress' :
-      ready ? 'Hold a direction to drive. Release to stop.' : 'Waiting for ESP32 readings');
-    for (const button of document.querySelectorAll('[data-drive]')) button.disabled = !ready || busy || autoSelected;
+    const distance = mqttDisplay.reading?.distance;
+    const obstacle = frontSteeringInterlock('forward');
+    range.textContent = roverText('Front ultrasonic') + ' · ' +
+      (!mqttDisplay.frontRangeFresh ? roverText('Unavailable') :
+        Number.isFinite(distance) && distance > 0 ? roverNumber(distance, 1) + ' cm' : roverText('No echo'));
+    setText('steerStatus', ultrasonicStop ? 'Ultrasonic emergency stop' : obstacle || (busy ? 'Firmware operation in progress' :
+      ready ? 'Hold a direction to drive. Release to stop.' : 'Waiting for ESP32 readings'));
+    for (const button of document.querySelectorAll('[data-drive]')) {
+      const blocked = frontSteeringInterlock(button.dataset.drive === 'back' ? 'reverse' : button.dataset.drive);
+      button.disabled = !ready || busy || autoSelected || Boolean(blocked);
+      button.title = blocked ? roverText(blocked) : '';
+    }
     const firmwareMission = (mqttDisplay.reading?.mission ?? 0) !== 0 ||
       mqttDisplay.firmwareStatus?.startsWith('FARM MISSION STARTED');
     $('autoMode').disabled = !ready;
     $('autoMode').title = 'ESP32 firmware mission over MQTT';
     $('autoStart').disabled = !ready || busy || Boolean(mqttHold || directQr);
     $('directQrStart').hidden = Boolean(directQr);
-    $('directQrStart').disabled = !ready || busy || !connected || drivePWM <= 0;
+    $('directQrStart').disabled = !ready || busy || !connected;
     $('directQrStop').hidden = !directQr;
-    $('directQrStart').title = !connected ? 'Connect the Pi camera and QR scanner first.' :
-      drivePWM <= 0 ? 'Set a drive speed above zero.' : '';
+    $('directQrStart').title = !connected ? 'Connect the Pi camera and QR scanner first.' : '';
     $('manualMode').disabled = busy;
     $('manualMode').setAttribute('aria-pressed', String(!autoSelected));
     $('autoMode').setAttribute('aria-pressed', String(autoSelected));
@@ -953,12 +1034,13 @@ function renderDirectControls() {
     setText('autoStart', 'Start firmware mission');
     $('autoCancelMqtt').hidden = !firmwareMission;
     $('autoCancelMqtt').disabled = !ready;
-    if (directQr || mqttDisplay.inspection?.state === 'running') $('waterPumpStart').disabled = true;
+    if (directQr || ultrasonicStop || mqttDisplay.inspection?.state === 'running') $('waterPumpStart').disabled = true;
     $('fertilizerPumpStart').disabled = !ready || busy || Boolean(directQr);
     setText('fertilizerTitle', 'Rover fertilizer dispenser');
     setText('fertilizerStatus', mqttDisplay.reading?.dispensing ? 'Dispensing' : ready ? 'Ready' : 'Waiting for ESP32 readings');
     setText('fertilizerPumpStart', 'Dispense fertilizer');
   } else {
+    for (const button of document.querySelectorAll('[data-drive]')) button.removeAttribute('title');
     $('autoMode').removeAttribute('title');
     setText('autoDescription', 'Scans for the nearest eligible QR card.');
     setText('autoStart', 'Start');
@@ -975,9 +1057,9 @@ function renderDirectControls() {
   }
 }
 function beginDirect(button) {
-  if (autoSelected || button.disabled || mqttHold || drivePWM <= 0) return;
+  if (autoSelected || button.disabled || mqttHold) return;
   mqttHold = button;
-  sendDirect(button.dataset.drive === 'back' ? 'reverse' : button.dataset.drive, drivePWM);
+  sendDirect(button.dataset.drive === 'back' ? 'reverse' : button.dataset.drive);
   mqttHoldTimer = setInterval(() => sendDirect('hold'), 150);
 }
 for (const button of document.querySelectorAll('[data-mqtt-action]')) {
@@ -1041,6 +1123,13 @@ if (embedded) {
         event.data?.type !== 'enviroos:rover-telemetry') return;
     const newStatus = mqttDisplay?.firmwareStatusRevision !== event.data.firmwareStatusRevision;
     mqttDisplay = event.data;
+    if (mqttDisplay.ultrasonicStop) stopDirectQr('Ultrasonic emergency stop', false);
+    const direction = directQr?.task?.direction;
+    const blocked = frontSteeringInterlock(direction);
+    if (blocked) stopDirectQr(blocked);
+    if (mqttHold && frontSteeringInterlock(mqttHold.dataset.drive === 'back' ? 'reverse' : mqttHold.dataset.drive)) {
+      releaseDirect();
+    }
     const inspectionUpdate = mqttDisplay.inspection;
     if (inspectionRequest && inspectionUpdate?.id === inspectionRequest) inspectionRequest = null;
     const inspectionTask = directQr?.task;
@@ -1056,7 +1145,8 @@ if (embedded) {
       const status = mqttDisplay.firmwareStatus || '';
       const task = directQr.task;
       if (/^(OBSTACLE DETECTED|DRIVE TIMEOUT|ROVER OFFLINE|EMERGENCY STOP)/.test(status)) {
-        stopDirectQr('QR steering interrupted by the ESP32.');
+        stopDirectQr(status.startsWith('OBSTACLE DETECTED') ?
+          'Front obstacle detected. Steering stopped.' : 'QR steering interrupted by the ESP32.');
       } else if (task?.action === 'inspect' && !task.inspectionId && task.statusRevision !== mqttDisplay.firmwareStatusRevision) {
         if (status.startsWith('FARM MISSION STARTED')) task.started = true;
         if (status === 'FARM MISSION COMPLETED' && task.started) task.completed = true;
@@ -1180,10 +1270,7 @@ function updateSteering() {
     return;
   }
   updateTaskPanel();
-  if (directMode()) {
-    $('driveSpeed').disabled = Boolean(directQr || mqttDisplay?.directBusy);
-    return;
-  }
+  if (directMode()) return;
   $('autoStart').disabled=!!steerReason() || autoArmed || locked;
   const showAutomatic = autoSelected || (locked && ['Automatic','Manual requested'].includes(operation.mode));
   $('autoMode').setAttribute('aria-pressed', String(showAutomatic));

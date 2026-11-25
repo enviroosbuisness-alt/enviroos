@@ -220,6 +220,18 @@
     "nav_weather": "ਮੌਸਮ"
   },
   "rover": {
+    "Ultrasonic emergency stop": "ਅਲਟਰਾਸੋਨਿਕ ਐਮਰਜੈਂਸੀ ਰੋਕ",
+    "Reset emergency stop": "ਐਮਰਜੈਂਸੀ ਰੋਕ ਰੀਸੈੱਟ ਕਰੋ",
+    "Clear the front sensor and wait for the ESP32 to confirm the stop.": "ਅਗਲੇ ਸੈਂਸਰ ਸਾਹਮਣੇ ਦੀ ਰੁਕਾਵਟ ਹਟਾਓ ਅਤੇ ESP32 ਵੱਲੋਂ ਰੋਕ ਦੀ ਪੁਸ਼ਟੀ ਦੀ ਉਡੀਕ ਕਰੋ।",
+    "Edit": "ਸੋਧੋ",
+    "Edit QR card": "QR ਕਾਰਡ ਸੋਧੋ",
+    "Save changes": "ਬਦਲਾਅ ਸੰਭਾਲੋ",
+    "Cancel": "ਰੱਦ ਕਰੋ",
+    "Front ultrasonic": "ਅਗਲਾ ਅਲਟਰਾਸੋਨਿਕ ਸੈਂਸਰ",
+    "No echo": "ਗੂੰਜ ਨਹੀਂ ਮਿਲੀ",
+    "Unavailable": "ਉਪਲਬਧ ਨਹੀਂ",
+    "Waiting for front ultrasonic readings.": "ਅਗਲੇ ਅਲਟਰਾਸੋਨਿਕ ਸੈਂਸਰ ਦੀ ਰੀਡਿੰਗ ਦੀ ਉਡੀਕ ਹੈ।",
+    "Front obstacle detected. Steering stopped.": "ਅੱਗੇ ਰੁਕਾਵਟ ਮਿਲੀ। ਰੋਵਰ ਰੁਕ ਗਿਆ।",
     "Commands": "ਹੁਕਮ",
     "Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.": "ਹਰ ਲਾਈਨ ਵਿੱਚ ਇੱਕ ਹੁਕਮ ਲਿਖੋ ਜਾਂ ਹੁਕਮਾਂ ਨੂੰ ਕਾਮੇ ਨਾਲ ਵੱਖ ਕਰੋ। ਸਮਾਂ ਨਾ ਦਿੱਤਾ ਹੋਵੇ ਤਾਂ ਰੋਵਰ ੩ ਸਕਿੰਟ ਚੱਲੇਗਾ।",
     "Inspect": "ਜਾਂਚ",
