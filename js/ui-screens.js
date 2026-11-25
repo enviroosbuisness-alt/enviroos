@@ -186,7 +186,7 @@ window.EnviroOS = window.EnviroOS || {};
   U.lineChart = (o) => {
     const W = 340, H = 156, L = 36, R = 12, T = 14, B = 24;
     const dec = o.decimals != null ? o.decimals : 1;
-    const fmtV = (v) => (dec === 0 ? fmtInt(v) : (Math.round(v * Math.pow(10, dec)) / Math.pow(10, dec)).toString());
+    const fmtV = (v) => (dec === 0 ? fmtInt(v) : E.i18n.number(v, dec));
     const vals = [];
     o.lines.forEach((l) => l.pts.forEach((p) => vals.push(p.v)));
     if (o.band) vals.push(o.band[0], o.band[1]);
@@ -269,7 +269,7 @@ window.EnviroOS = window.EnviroOS || {};
         return `<div class="chist-item empty"><div class="chist-hd"><span class="chist-dot" style="background:${m.lines[0].color}"></span><strong>${esc(m.name)}</strong></div>`
           + `<div class="chist-wait">${U.icons.clock} <span>${esc(t('chist_collecting'))}</span></div></div>`;
       }
-      const fmtV = (v) => (m.dec === 0 ? fmtInt(v) : (Math.round(v * Math.pow(10, m.dec)) / Math.pow(10, m.dec)).toString());
+      const fmtV = (v) => (m.dec === 0 ? fmtInt(v) : E.i18n.number(v, m.dec));
       const vs = main.map((p) => p.v);
       const nowTxt = lines.length > 1
         ? lines.map((l) => (l.pts.length ? `<span style="color:${l.color}">${esc(l.label)} ${fmtV(l.pts[l.pts.length - 1].v)}</span>` : '')).join(' ')
@@ -295,7 +295,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="card-hd chist-top"><span class="seclabel2">${U.icons.chart || U.icons.clock} ${esc(t('chist_title'))} · ${esc(info.cropName)}</span>`
       + `<div class="seg chist-seg" role="group" aria-label="${esc(t('chist_title'))}">${seg}</div></div>`
       + `<div class="chist-grid">${charts}</div>`
-      + `<div class="chist-foot"><small class="muted">${rows.length} ${esc(t('chist_points'))}${first ? ` · ${esc(t('chist_since'))} ${first.getDate()}/${first.getMonth() + 1}/${first.getFullYear()}` : ''} · ${esc(t('chist_saved_note'))}</small>`
+      + `<div class="chist-foot"><small class="muted">${esc(E.i18n.plural('chist_reading_count', rows.length))}${first ? ` · ${esc(t('chist_since'))} ${esc(E.i18n.date(first, {dateStyle:'short'}))}` : ''} · ${esc(t('chist_saved_note'))}</small>`
       + `<div class="chist-actions"><button class="btn secondary sm" type="button" data-chist-export="1"><span class="material-symbols-outlined ui-ic" aria-hidden="true">download</span> <span>${esc(t('chist_export'))}</span></button>`
       + `<button class="btn secondary sm" type="button" data-chist-clear="1"><span class="material-symbols-outlined ui-ic" aria-hidden="true">delete</span> <span>${esc(t('chist_clear'))}</span></button></div></div>`
       + `</div>`;
@@ -353,10 +353,10 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="card-hd"><span class="seclabel2">${esc(info.cropName)} — ${esc(t('crop_stats_title') || 'Agronomic Perspective & Research Stats')}</span>`
       + `<span class="stbadge good">${U.cropEmoji(info.cropId)} ${esc(info.cropName)}</span></div>`
       + `<div class="refgrid">`
-      + `<div class="refitem"><span>${esc(t('ev_moisture'))}</span><strong>${crop.moistureLow}–${crop.moistureGood}% VWC</strong><small>${esc(t('hist_latest'))}: ${s && s.moisture != null ? fmt1(s.moisture) + '%' : '—'} • Dry &lt;${crop.moistureDry}%</small></div>`
-      + `<div class="refitem"><span>${esc(t('ev_temp'))}</span><strong>${crop.tempOptMin}–${crop.tempOptMax}°C</strong><small>${esc(t('hist_latest'))}: ${s && s.tempC != null ? fmt1(s.tempC) + '°C' : '—'} • Stress &gt;${crop.tempHeatStress}°C</small></div>`
-      + `<div class="refitem"><span>${esc(t('ev_ph'))}</span><strong>${crop.phMin}–${crop.phMax} pH</strong><small>${esc(t('hist_latest'))}: ${s && s.ph != null ? fmt1(s.ph) : '—'} • ${crop.phMin >= 6.5 ? 'Calcareous / Alkaline' : 'Loamy / Neutral'}</small></div>`
-      + `<div class="refitem"><span>${esc(t('sun_title'))}</span><strong>${fmtInt(crop.luxGood / 1000)}k lux</strong><small>Min: ${fmtInt(crop.luxLow / 1000)}k • Scorch: ${fmtInt(crop.luxScorch / 1000)}k</small></div>`
+      + `<div class="refitem"><span>${esc(t('ev_moisture'))}</span><strong>${crop.moistureLow}–${crop.moistureGood}% VWC</strong><small>${esc(t('hist_latest'))}: ${s && s.moisture != null ? fmt1(s.moisture) + '%' : '—'} • ${esc(t('dry_label'))} &lt;${crop.moistureDry}%</small></div>`
+      + `<div class="refitem"><span>${esc(t('ev_temp'))}</span><strong>${crop.tempOptMin}–${crop.tempOptMax}°C</strong><small>${esc(t('hist_latest'))}: ${s && s.tempC != null ? fmt1(s.tempC) + '°C' : '—'} • ${esc(t('crop_heat_stress'))} &gt;${crop.tempHeatStress}°C</small></div>`
+      + `<div class="refitem"><span>${esc(t('ev_ph'))}</span><strong>${crop.phMin}–${crop.phMax} pH</strong><small>${esc(t('hist_latest'))}: ${s && s.ph != null ? fmt1(s.ph) : '—'} • ${esc(t(crop.phMin >= 6.5 ? 'soil_calcareous' : 'soil_loamy'))}</small></div>`
+      + `<div class="refitem"><span>${esc(t('sun_title'))}</span><strong>${fmtInt(crop.luxGood / 1000)}k lux</strong><small>${esc(t('display_min'))}: ${fmtInt(crop.luxLow / 1000)}k • ${esc(t('crop_sunburn'))}: ${fmtInt(crop.luxScorch / 1000)}k</small></div>`
       + `</div>`
 
       + `</div>`;
@@ -408,7 +408,7 @@ window.EnviroOS = window.EnviroOS || {};
       ? `<div class="card"><div class="seclabel2">${esc(t('next_hours'))}</div>`
         + `<div class="wx-hourly">`
         + o.hourly.map((h) => `<div class="wxh-cell">`
-            + `<span class="wxh-time">${esc(h.time)}</span>`
+            + `<span class="wxh-time">${esc(E.i18n.date(h.time.includes('T') ? h.time : '2000-01-01T' + h.time, {hour:'2-digit', minute:'2-digit'}))}</span>`
             + `<span class="wxh-ic" aria-hidden="true">${wxIcon(h.band)}</span>`
             + `<strong class="wxh-temp">${fmt1(h.tempC)}°</strong>`
             + `<span class="wxh-rain ${h.prob >= 40 ? 'wet' : ''}">${U.icons.drop} ${fmtInt(h.prob)}%</span>`
@@ -420,7 +420,7 @@ window.EnviroOS = window.EnviroOS || {};
       ? `<div class="card"><div class="seclabel2">${esc(t('next_days'))}</div>`
         + `<div class="wx-daily">`
         + o.daily.map((d) => `<div class="wxd-row">`
-            + `<span class="wxd-date">${esc(d.date)}</span>`
+            + `<span class="wxd-date">${esc(E.i18n.date(d.date + 'T00:00:00', {weekday:'short', day:'numeric', month:'short'}))}</span>`
             + `<span class="wxd-sky"><span aria-hidden="true">${wxIcon(d.band)}</span> ${esc(t('wxc_' + d.band))}</span>`
             + `<span class="wxd-rain ${d.prob >= 40 ? 'wet' : ''}">${U.icons.drop} ${fmtInt(d.prob)}%</span>`
             + `<strong class="wxd-temp">${fmt1(d.tmin)}° – ${fmt1(d.tmax)}°C</strong>`
@@ -446,7 +446,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="card">`
       + `<div class="card-hd"><span class="seclabel2">${esc(t('temp_title'))}</span><span class="stbadge ${a && a.heat.level === 'good' ? 'good' : 'warn'}">${esc(a ? t(a.heat.badgeKey) : '')}</span></div>`
       + `<div class="bignum">${s && s.tempC != null ? fmt1(s.tempC) + '°C' : '—'}</div>`
-      + `<div class="bandword">${s && s.tmin != null ? `Min ${fmt1(s.tmin)}°C · Max ${fmt1(s.tmax)}°C` : ''}</div>`
+      + `<div class="bandword">${s && s.tmin != null ? `${esc(t('display_min'))} ${fmt1(s.tmin)}°C · ${esc(t('display_max'))} ${fmt1(s.tmax)}°C` : ''}</div>`
       + `</div>`
 
       + `<div class="card">`
@@ -505,7 +505,7 @@ window.EnviroOS = window.EnviroOS || {};
           const min = vs.length ? Math.min(...vs) : '—';
           const max = vs.length ? Math.max(...vs) : '—';
           return `<div class="trenditem">`
-            + `<div class="ti-meta"><strong>${esc(r.name)}</strong><span class="ti-word">${esc(r.word)}</span><small class="muted">Min ${min} · Max ${max}</small></div>`
+            + `<div class="ti-meta"><strong>${esc(r.name)}</strong><span class="ti-word">${esc(r.word)}</span><small class="muted">${esc(t('display_min'))} ${fmt1(min)} · ${esc(t('display_max'))} ${fmt1(max)}</small></div>`
             + `<div class="ti-now">${esc(r.now)}</div>`
             + `<div class="tspark">${U.spark(r.vals, { w: 132, h: 44 })}</div>`
             + `</div>`;
@@ -824,7 +824,7 @@ window.EnviroOS = window.EnviroOS || {};
 
   /* ---------- ROVER: full Pi / ESP32 mission control ---------- */
   U.vRover = () => `<div class="screen-top"><h1 class="ptitle">${esc(t('rover_title'))}</h1></div>`
-    + `<iframe id="rover-mission-control" title="Enviro Rover controls, QR tasks and soil inspection" src="${import.meta.env.BASE_URL}rover/index.html?embedded=1" allow="geolocation; fullscreen" class="rover-mission-frame"></iframe>`;
+    + `<iframe id="rover-mission-control" title="${esc(t('rover_title'))}" data-i18n-title="rover_title" src="${import.meta.env.BASE_URL}rover/index.html?embedded=1${import.meta.env.DEV ? '&amp;localPi=1' : ''}" allow="geolocation; fullscreen" class="rover-mission-frame"></iframe>`;
 
   U.sayRover = () => {
     const r = (U.rover && U.rover.status) ? U.rover.status() : { moving: false, speed: 150 };
@@ -1005,16 +1005,17 @@ window.EnviroOS = window.EnviroOS || {};
   U.dlgNodes = () => {
     let devs = [];
     try { if (U.mqtt) devs = U.mqtt.getDevices() || []; } catch (_) { /* ignore */ }
-    const cur = U.mqtt ? U.mqtt.deviceId : E.MQTT_DEFAULT_DEVICE;
-    const isDemo = U.source === 'demo';
-    const body = `<div class="nodelist">` + [E.MQTT_DEFAULT_DEVICE, E.MQTT_SECOND_DEVICE].map((id) => {
-      const d = id === E.MQTT_SECOND_DEVICE && U.secondDevice ? U.secondDevice.status() : devs.find((x) => x.id === id) || {};
-      const on = !isDemo && cur === id;
-      return `<button class="nodeitem ${on ? 'on' : ''}" type="button" data-pick-node="${id}" aria-pressed="${on}">`
-        + `<span class="half-emoji" aria-hidden="true">${id === E.MQTT_DEFAULT_DEVICE ? U.icons.leaf : U.icons.node}</span>`
-        + `<span class="half-meta"><strong>${esc(U.deviceLabel(id))}</strong>`
-        + `<small>${esc(id === E.MQTT_DEFAULT_DEVICE ? t('node_1_desc') : t('node_2_desc'))}</small>`
-        + `<small>${d.online ? '<span class="pulsedot inline"></span> ' + esc(t('node_signal_online')) : '<span class="dot-waiting inline"></span> ' + esc(t('node_signal_waiting'))}</small></span>`
+    const main = {model:U.deviceLabel(E.MQTT_DEFAULT_DEVICE), id:E.MQTT_DEFAULT_DEVICE};
+    const nodes = [main, ...U.otherNodes()];
+    const body = `<div class="nodelist">` + nodes.map(({model, id, key}, index) => {
+      const node = key ? U.otherNodeStatus?.(key) : devs.find(device => device.id === id);
+      const deviceId = key ? node?.deviceId || '' : id;
+      const on = key ? U.otherDeviceForRoute(U.route)?.key === key : U.route === 'home' || U.route === 'rover';
+      const label = key ? U.otherDeviceTabLabel(index - 1) : t('device_main');
+      return `<button class="nodeitem ${on ? 'on' : ''}" type="button" data-pick-node="${esc(deviceId)}" ${key ? `data-open-device-slot="${esc(key)}"` : ''} aria-pressed="${on}">`
+        + `<span class="half-emoji" aria-hidden="true">${key ? U.icons.node : U.icons.leaf}</span>`
+        + `<span class="half-meta"><strong>${esc(label)} · ${esc(model)}</strong>`
+        + `<small>${node?.online ? '<span class="pulsedot inline"></span> ' + esc(t('node_signal_online')) : '<span class="dot-waiting inline"></span> ' + esc(t(deviceId ? 'node_signal_waiting' : 'node_not_paired'))}</small></span>`
         + `<span class="half-st ${on ? 'on' : ''}">${on ? esc(t('node_active_badge')) : esc(t('node_select_action'))}</span></button>`;
     }).join('') + `</div>`
     + `<div class="seclabel2" style="margin-top:14px">${esc(t('data_source'))}</div>`
@@ -1036,8 +1037,8 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="seclabel2">${esc(t('farm_stage'))}</div><div class="choicegrid cols3" id="f-stage">` + E.CROP_STAGES.map((s) =>
         `<button class="choice" type="button" data-stage="${s}" aria-pressed="${info.stage === s}">${esc(t('stage_' + s))}</button>`).join('') + `</div>`
       + `<div class="step-fields">`
-      + `<div class="field"><label for="f-pin">${esc(t('farm_pincode'))}</label><div class="inputrow"><input id="f-pin" inputmode="numeric" value="${esc(p.pincode || '')}">${(E.voice && E.voice.sttSupported) ? `<button type="button" class="micbtn" data-dictate="f-pin" aria-label="Voice">${IC.mic}</button>` : ''}</div></div>`
-      + `<div class="field"><label for="f-size">${esc(t('farm_size'))} (${esc(t('acres_unit'))})</label><input id="f-size" type="number" inputmode="decimal" value="${fmt1(info.sizeValue)}"></div>`
+      + `<div class="field"><label for="f-pin">${esc(t('farm_pincode'))}</label><div class="inputrow"><input id="f-pin" inputmode="numeric" value="${esc(p.pincode || '')}">${(E.voice && E.voice.sttSupported) ? `<button type="button" class="micbtn" data-dictate="f-pin" aria-label="${esc(t('hf_talk'))}">${IC.mic}</button>` : ''}</div></div>`
+      + `<div class="field"><label for="f-size">${esc(t('farm_size'))} (${esc(t('acres_unit'))})</label><input id="f-size" type="number" inputmode="decimal" value="${info.sizeValue}"></div>`
       + `</div>`
       + `<div class="row2"><button class="btn secondary" type="button" data-close-dlg="1">${esc(t('close_label'))}</button><button class="btn primary" type="button" id="f-save-profile">${U.icons.check} ${esc(t('save_label'))}</button></div>`);
     $('dlg-body').querySelectorAll('[data-crop]').forEach((b) => b.addEventListener('click', () => {
@@ -1166,7 +1167,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="field"><label>Sprayer Tank V_tank (L)</label><input type="number" step="5" inputmode="decimal" data-dose-calc-opt="tankVolumeL" value="${m3.vTankL}"></div>`
       + `<div class="field"><label>Purity Fraction (0.1–1.0)</label><input type="number" step="0.05" inputmode="decimal" data-dose-calc-opt="purityFrac" value="${m3.purityFrac}"></div>`
       + `</div>`
-      + `<div class="dose-calc-result">TRV = <strong>${m3.trvM3Ha.toLocaleString()} m³/ha</strong> → Spray = <strong>${m3.carrierSprayLHa} L/ha</strong> (${m3.carrierSprayLAc} L/ac) → Tank Mix = <strong>${fmt1(m3.vTankL * (dAll.pesticide.rate || 0))} mL</strong> (${m3.massActiveIngredientG} g a.i.)</div>`
+      + `<div class="dose-calc-result">TRV = <strong>${fmt1(m3.trvM3Ha)} m³/ha</strong> → Spray = <strong>${m3.carrierSprayLHa} L/ha</strong> (${m3.carrierSprayLAc} L/ac) → Tank Mix = <strong>${fmt1(m3.vTankL * (dAll.pesticide.rate || 0))} mL</strong> (${m3.massActiveIngredientG} g a.i.)</div>`
       + `</div>`
 
       + `</div>`
@@ -1194,7 +1195,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="seclabel2">${esc(t('data_source'))}</div><div class="seg">` + [['auto', 'src_auto'], ['live', 'src_live'], ['demo', 'src_mock']].map(([v, k]) =>
         `<button class="segopt" type="button" data-seg="source" data-val="${v}" aria-pressed="${U.source === v}">${esc(t(k))}</button>`).join('') + `</div>`
       + `<div class="setrow"><span><strong>${esc(t('signin_title'))}</strong><small>${(U.auth && U.auth.name) ? `${esc(U.auth.name)} (${esc(U.auth.mainModel || 'Enviro Pro')})` : esc(t('signin_sub'))}</small></span><button class="btn secondary sm" type="button" data-open-signin="1">${U.icons.user || MI('person')} <span>${(U.auth && U.auth.name) ? esc(t('signin_switch_account')) : esc(t('signin_title'))}</span></button></div>`
-      + `<div class="setrow"><span><strong>${esc(U.deviceLabel(E.MQTT_SECOND_DEVICE))}</strong><small>${U.isSecondDeviceOn() ? esc(t('second_connect_connected')) : esc(t('second_connect_not_connected'))}</small></span><button class="btn secondary sm" type="button" data-toggle-second-device="1">${U.icons.power} <span>${esc(t(U.secondDevice?.status().enabled ? 'second_connect_pause' : 'second_connect_btn'))}</span></button></div>`
+      + (U.hasSecondary() ? `<div class="setrow"><span><strong>${esc(U.otherDeviceTabLabel(0))}</strong><small>${U.isSecondDeviceOn() ? esc(t('second_connect_connected')) : esc(t('second_connect_not_connected'))}</small></span><button class="btn secondary sm" type="button" data-toggle-second-device="1">${U.icons.power} <span>${esc(t(U.secondDevice?.status().enabled ? 'second_connect_pause' : 'second_connect_btn'))}</span></button></div>` : '')
       + `<div class="setrow"><span><strong>${esc(t('voice_title'))}</strong><small>${esc(t('voice_hint'))}</small></span><button class="switch" type="button" data-sw="voice" aria-pressed="${vOn}" aria-label="${esc(t('voice_title'))}"></button></div>`
       + (U.handsFreeSettings?.() || '')
       + `<div class="setrow"><span><strong>${esc(t('voice_accent_title'))}</strong><small>${esc(t('voice_accent_sub'))}</small></span><button class="btn secondary sm" type="button" data-test-voice="1">${U.icons.speaker} <span>${esc(t('voice_accent_test'))}</span></button></div>`
@@ -1277,17 +1278,24 @@ window.EnviroOS = window.EnviroOS || {};
   /* ---------- SIGN IN SCREEN / MODAL DIALOG ---------- */
   U.dlgSignIn = (allowClose = false) => {
     const auth = U.getAuth ? (U.getAuth() || {}) : {};
-    const models = U.MODELS.map(({label}) => ({id:label, label}));
+    const models = U.MODELS.filter(({id}) => id !== 'enviro_pro').map(({label}) => ({id:label, label}));
 
-    const curMain = auth.mainModel || '';
-    const curAsst = auth.assistantModel || '';
+    const available = model => models.find(({id}) => id === U.modelName(model))?.id || '';
+    const curMain = available(auth.mainModel);
+    const optionalModel = model => available(model) || 'none';
+    const curAsst = String(auth.assistantModel || '').trim().toLowerCase() === 'none'
+      ? 'none' : available(auth.assistantModel);
+    const curOther = optionalModel(auth.otherModel);
 
+    const modelOptions = selected => models.map((m) =>
+      `<option value="${esc(m.id)}" ${selected === m.id ? 'selected' : ''}>${esc(m.label)}</option>`).join('');
+    const noneOption = selected =>
+      `<option value="none" ${selected === 'none' ? 'selected' : ''}>${esc(t('signin_assistant_model_none'))}</option>`;
     const mainOpts = `<option value="" disabled ${!curMain ? 'selected' : ''}>-- ${esc(t('signin_main_model_select'))} --</option>`
-      + models.map((m) => `<option value="${esc(m.id)}" ${curMain === m.id ? 'selected' : ''}>${esc(m.label)}</option>`).join('');
-
+      + modelOptions(curMain);
     const asstOpts = `<option value="" disabled ${!curAsst ? 'selected' : ''}>-- ${esc(t('signin_assistant_model_select'))} --</option>`
-      + models.map((m) => `<option value="${esc(m.id)}" ${curAsst === m.id ? 'selected' : ''}>${esc(m.label)}</option>`).join('')
-      + `<option value="none" ${curAsst === 'none' ? 'selected' : ''}>${esc(t('signin_assistant_model_none'))}</option>`;
+      + modelOptions(curAsst) + noneOption(curAsst);
+    const otherOpts = modelOptions(curOther) + noneOption(curOther);
 
     const closeBtn = allowClose
       ? `<button class="iconbtn dark" type="button" data-close-dlg="1" aria-label="${esc(t('close_label'))}">${IC.close}</button>`
@@ -1324,6 +1332,10 @@ window.EnviroOS = window.EnviroOS || {};
       + `        ${asstOpts}`
       + `      </select>`
       + `    </div>`
+      + `    <div class="field" id="signin-other-field" hidden>
+      <label for="signin-other-model">${esc(t('signin_other_model_label'))}</label>
+      <select class="styled-select" id="signin-other-model">${otherOpts}</select>
+    </div>`
       + `    <div class="signin-err" id="signin-err" role="alert" style="display:none;"></div>`
       + `    <button class="btn primary block lg signin-btn" type="button" id="signin-submit">`
       + `      ${U.icons.check} <span>${esc(t('signin_btn'))}</span>`
@@ -1339,19 +1351,16 @@ window.EnviroOS = window.EnviroOS || {};
     const submitBtn = $('signin-submit');
     const errBox = $('signin-err');
 
-    if (mainSelect && asstField) {
-      mainSelect.addEventListener('change', () => {
-        if (mainSelect.value) {
-          asstField.style.display = '';
-          // Smooth slide in
-          asstField.classList.remove('enter');
-          void asstField.offsetWidth;
-          asstField.classList.add('enter');
-        } else {
-          asstField.style.display = 'none';
-        }
-      });
+    const otherSelect = $('signin-other-model');
+    function updateModelFields() {
+      asstField.style.display = mainSelect.value ? '' : 'none';
+      const showOther = Boolean(mainSelect.value && asstSelect.value);
+      $('signin-other-field').hidden = !showOther;
+      otherSelect.disabled = !showOther;
     }
+    mainSelect.addEventListener('change', updateModelFields);
+    asstSelect.addEventListener('change', updateModelFields);
+    updateModelFields();
 
     if (submitBtn) {
       submitBtn.addEventListener('click', () => {
@@ -1381,6 +1390,7 @@ window.EnviroOS = window.EnviroOS || {};
           pass,
           mainModel: main,
           assistantModel: asst,
+          otherModel: otherSelect.value,
           signedInAt: Date.now()
         };
 

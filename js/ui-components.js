@@ -9,8 +9,8 @@ window.EnviroOS = window.EnviroOS || {};
   const U = E.UI = E.UI || {};
   const t = (k) => (E.i18n ? E.i18n.t(k) : k);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const fmt1 = (v) => (v == null || Number.isNaN(+v) ? '—' : (Math.round(+v * 10) / 10));
-  const fmtInt = (v) => (v == null || Number.isNaN(+v) ? '—' : Math.round(+v));
+  const fmt1 = U.fmt1;
+  const fmtInt = U.fmtInt;
   const IC = U.icons || {};
 
   const C = {};
@@ -50,23 +50,20 @@ window.EnviroOS = window.EnviroOS || {};
         : `<span class="tag warn">${esc(t('offline_bot'))}</span>`;
 
     let nodesHtml = '';
-    if (opts.showNodes && U.source !== 'demo' && U.mqtt) {
-      const cur = U.mqtt.deviceId;
-      const d1 = E.MQTT_DEFAULT_DEVICE, d2 = E.MQTT_SECOND_DEVICE;
-      const devs = {};
-      try { (U.mqtt.getDevices() || []).forEach((d) => { devs[d.id] = d; }); } catch (_) { /* ignore */ }
-      const nodeBtn = (id, iconSvg, nameKey, badgeKey) => {
-        const on = cur === id, online = !!(devs[id] && devs[id].online);
-        return `<button class="half ${on ? 'on' : ''}" type="button" data-switch-node="${id}" aria-pressed="${on}">`
-          + `<span class="half-emoji" aria-hidden="true">${iconSvg}</span>`
-          + `<span class="half-meta"><strong>${esc(t(nameKey))}</strong><small>${esc(t(badgeKey))}</small></span>`
-          + `<span class="half-st ${on || online ? 'on' : ''}"><span class="pulsedot"></span>${on ? esc(t('node_active_badge')) : (online ? esc(t('node_signal_online')) : esc(t('node_signal_waiting')))}</span>`
-          + `</button>`;
-      };
-      nodesHtml = `<div class="halves" role="group" aria-label="${esc(t('nodes_title'))}">`
-        + nodeBtn(d1, U.icons.leaf, 'node_1_name', 'node_1_badge')
-        + nodeBtn(d2, U.icons.node, 'node_2_name', 'node_2_badge')
-        + `</div>`;
+    const auth = U.auth || {};
+    const multiNode = U.hasOtherNodes() || ['Enviro Basic', 'Enviro Advanced'].includes(U.modelName(auth.mainModel));
+    if (opts.showNodes && (multiNode || (U.source !== 'demo' && U.mqtt))) {
+      const id = E.MQTT_DEFAULT_DEVICE;
+      const active = U.source !== 'demo' && U.mqtt?.deviceId === id;
+      const online = active && U.mqtt?.getDevices?.().some(device => device.id === id && device.online);
+      const action = U.source !== 'demo' ? `type="button" data-switch-node="${id}" aria-pressed="${Boolean(active)}"` : '';
+      const tag = action ? 'button' : 'div';
+      const status = online ? 'node_signal_online' : U.source === 'demo' ? 'demo_tag' : 'node_signal_waiting';
+      nodesHtml = `<div class="halves configured-nodes" role="group" aria-label="${esc(t('device_main'))}">`
+        + `<${tag} class="half ${active ? 'on' : ''}" ${action}>`
+        + `<span class="half-emoji" aria-hidden="true">${U.icons.leaf}</span>`
+        + `<span class="half-meta"><strong>${esc(t('device_main'))}</strong><small>${esc(U.deviceLabel(id))}</small></span>`
+        + `<span class="half-st ${online ? 'on' : ''}"><span class="pulsedot"></span>${esc(t(status))}</span></${tag}></div>`;
     }
 
     return `<div class="farmstrip">`
@@ -99,7 +96,7 @@ window.EnviroOS = window.EnviroOS || {};
       ? `<div class="herostatus ok"><span class="hs-ic" aria-hidden="true">${U.icons.check}</span><div><strong>${esc(t('farm_looks_good'))}</strong><span>${esc(t('farm_looks_good_sub'))}</span></div></div>`
       : `<div class="herostatus warn"><span class="hs-ic" aria-hidden="true">${U.icons.warn}</span><div><strong>${n} ${esc(n === 1 ? t('thing_to_check') : t('things_to_check')).toUpperCase()}</strong><span>${esc(t('what_to_check'))}</span></div></div>`;
 
-    const adviceTxt = U.heroAdvice || (E.i18n.lang === 'hi' ? 'विश्लेषण जारी…' : 'Analyzing…');
+    const adviceTxt = U.heroAdvice || t('dashboard_advice_offline');
     const speakingHero = !!(U.isSpeaking && U.speakingText === adviceTxt);
 
     return `<div class="herocard">`
@@ -120,12 +117,32 @@ window.EnviroOS = window.EnviroOS || {};
   };
 
   /* ---------- 5. Visual Status Pillar Card (Water, Heat, Soil, Weather) ---------- */
+  function roverCardMeasurement(id) {
+    if (!U.hasRover()) return '';
+    const reading = U.roverHomeReading;
+    const value = id === 'water' ? reading?.water : id === 'heat' ? reading?.temperature : null;
+    return Number.isFinite(value) ? E.i18n.number(value) + ' ADC' : '';
+  }
+
+  U.syncRoverHomeCards = () => {
+    for (const el of document.querySelectorAll('#s-home [data-rover-home-measure]')) {
+      const value = roverCardMeasurement(el.dataset.roverHomeMeasure) || '—';
+      if (el.textContent !== value) el.textContent = value;
+    }
+  };
+
   C.statusPillarCard = (id) => {
     const st = U.statusOf(id);
     const s = U.snapshot, a = U.analysis;
     const crop = U.nodeInfo().crop;
     const cond = { water: 'cond_water', heat: 'cond_heat', soil: 'cond_soil', weather: 'cond_weather' }[id];
     const icon = { water: U.icons.drop, heat: U.icons.heat, soil: U.icons.leaf, weather: U.icons.cloud }[id];
+    const measure = U.measureOf(id);
+    const useRover = U.hasRover() && measure === '—' && ['water','heat'].includes(id);
+    const forecast = U.outlook?.source === 'online' ? U.outlook.current : null;
+    const displayMeasure = useRover ? roverCardMeasurement(id) || '—' :
+      id === 'weather' && measure === '—' && Number.isFinite(forecast?.tempC)
+        ? fmt1(forecast.tempC) + '°C' : measure;
     const mark = st.tone === 'good' ? U.icons.check : (st.tone === 'bad' ? U.icons.warn : (st.tone === 'mute' ? '–' : U.icons.up));
 
     let visualGauge = '';
@@ -140,7 +157,7 @@ window.EnviroOS = window.EnviroOS || {};
       const pct = Math.min(100, Math.max(5, ((s.tempC - 5) / 45) * 100));
       visualGauge = `<div class="minigauge">`
         + `<div class="mg-track"><span class="mg-fill ${st.tone}" style="width:${pct}%"></span><span class="mg-marker" style="left:${pct}%"></span></div>`
-        + `<div class="mg-sub"><span>${s.tmin != null ? fmt1(s.tmin) + '°' : ''} – ${s.tmax != null ? fmt1(s.tmax) + '°C' : ''}</span><span>${esc(t('st_good'))} ${crop.tempOptMin || 20}–${crop.tempOptMax || 32}°C</span></div></div>`;
+        + `<div class="mg-sub"><span>${s.tmin != null ? fmt1(s.tmin) + '°' : ''} – ${s.tmax != null ? fmt1(s.tmax) + '°C' : ''}</span><span>${esc(t('st_good'))} ${fmt1(crop.tempOptMin || 20)}–${fmt1(crop.tempOptMax || 32)}°C</span></div></div>`;
     } else if (id === 'soil') {
       const n = a && a.nutrients ? a.nutrients : { n: 'unknown', p: 'unknown', k: 'unknown' };
       const pill = (lbl, val, band) => `<span class="npkmini ${band === 'good' ? 'good' : (band === 'unknown' ? 'mute' : 'warn')}"><b>${lbl}</b> ${val != null ? fmtInt(val) : '—'}</span>`;
@@ -154,7 +171,7 @@ window.EnviroOS = window.EnviroOS || {};
     return `<button class="stcard" type="button" data-sheet="${id}" data-tone="${st.tone}" aria-label="${esc(t(cond))}: ${esc(st.value)}">`
       + `<div class="sttop">`
       + `<span class="stic" data-m="${id}" aria-hidden="true">${icon}</span>`
-      + `<div class="stmeta"><span class="stcond">${esc(t(cond))}</span><span class="stnum">${esc(U.measureOf(id))}</span></div>`
+      + `<div class="stmeta"><span class="stcond">${esc(t(cond))}</span><span class="stnum"${useRover ? ` data-rover-home-measure="${id}"` : ''}>${esc(displayMeasure)}</span></div>`
       + `<span class="stbadge ${st.tone}"><span aria-hidden="true">${mark}</span> ${esc(st.value)}</span>`
       + `</div>`
       + visualGauge
@@ -225,6 +242,16 @@ window.EnviroOS = window.EnviroOS || {};
 
   /* ---------- 9. Inline & Full Pump Controller Component ---------- */
   C.pumpCard = () => {
+    if (U.hasRover()) return `<div class="pumpcard">
+      <div class="pumpcard-main">
+        <span class="stic" data-tone="good" aria-hidden="true">${U.icons.pump}</span>
+        <div class="pumpcard-copy">
+          <div class="pumpcard-state">${esc(t('device_pump_controls'))}</div>
+          <p class="pumpcard-sub">${esc(t('device_pump_route'))}</p>
+        </div>
+        <button class="btn secondary" type="button" data-open-rover-pumps>${esc(t('device_open_pumps'))}</button>
+      </div>
+    </div>`;
     const p = U.pump ? U.pump.status() : { running: false, mode: 'auto', startBelow: 20, stopAbove: 35 };
     const moist = U.snapshot && U.snapshot.moisture != null ? `${fmt1(U.snapshot.moisture)}%` : '—';
     return `<div class="pumpcard ${p.running ? 'running' : ''}">`
@@ -233,12 +260,12 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="pumpcard-copy">`
       + `<div class="pumpcard-kicker">${esc(t('pump_title'))} • <span class="modebadge">${esc(p.mode === 'auto' ? t('mode_auto') : t('mode_manual'))}</span></div>`
       + `<div class="pumpcard-state">${p.running ? esc(t('auto_watering')) : esc(t('auto_waiting'))}</div>`
-      + `<div class="pumpcard-sub">${esc(t('ev_moisture'))}: <strong>${esc(moist)}</strong> • ${esc(t('auto_start_below'))} ${p.startBelow}% / ${esc(t('auto_stop_above'))} ${p.stopAbove}%</div>`
+      + `<div class="pumpcard-sub">${esc(t('ev_moisture'))}: <strong>${esc(moist)}</strong> • ${esc(t('auto_start_below'))} ${fmt1(p.startBelow)}% / ${esc(t('auto_stop_above'))} ${fmt1(p.stopAbove)}%</div>`
       + `</div>`
       + `<span class="stgo" aria-hidden="true">${U.icons.chev}</span>`
       + `</div>`
       + `<div class="pumpcard-actions">`
-      + `<button class="btn ${p.running ? 'danger' : 'primary'}" type="button" data-pump-toggle="1">${p.running ? U.icons.stop + ' ' + esc(t('dir_stop')) : U.icons.play + ' ' + esc(t('pump_start'))}</button>`
+      + `<button class="btn ${p.running ? 'danger' : 'primary'}" type="button" data-pump-toggle="1"${U.source !== 'demo' ? ' disabled' : ''}>${p.running ? U.icons.stop + ' ' + esc(t('dir_stop')) : U.icons.play + ' ' + esc(t('pump_start'))}</button>`
       + `<button class="btn secondary" type="button" data-go="rover">${U.icons.gear} <span>${esc(t('act_view'))}</span></button>`
       + `</div>`
       + `</div>`;

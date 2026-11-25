@@ -1,15 +1,21 @@
 import './theme.js';
+import { receiveRoverLocale, roverDate, roverLabel, roverLocale, roverNumber, roverText } from './locale.js';
 import {renderMap, showHistory} from './history.js';
 let rememberEdits=false, lastJourney='', liveArchive=null;
 const $=id=>document.getElementById(id);
 const localCamera=document.body.dataset.localCamera==='true';
-const embedded = window.parent !== window && new URLSearchParams(location.search).has('embedded');
+const pageOptions = new URLSearchParams(location.search);
+const embedded = window.parent !== window && pageOptions.has('embedded');
+const localPiProxy = embedded && pageOptions.has('localPi');
 let hostActive = !embedded;
 if (embedded) document.documentElement.classList.add('embedded');
 const canvas=$('map'),ctx=canvas.getContext('2d');
 let grid,points=[],stops={},zones=[],history=[],tool='draw',robot={x:0,y:0,yaw:0};
 let zoom=1,offset={x:0,y:0},scale=40,drag=null,hover=null,checked=false,previewAt=null;
+let dispensingPending = false;
 let base=sessionStorage.getItem('roverApi')||'',token=sessionStorage.getItem('roverToken')||'',connected=false,state={},polling=false,epoch=0,mapRevision=null,cameraURL=null,cameraBusy=false;
+// A stored loopback address points at the visitor's device on the network.
+if (localPiProxy && /^http:\/\/(?:127\.0\.0\.1|localhost):8088\/?$/.test(base)) base = location.origin + '/rover-pi';
 let toastTimer,lease=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),lastSeen=0,raf=null;
 const raster=document.createElement('canvas');
 const MAX_POINTS=5000;
@@ -68,15 +74,15 @@ function syncUI(){
 
 function pointAt(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
 canvas.addEventListener('pointerdown',e=>{if(state.busy){toast('Stop the active mission before editing.');return}canvas.setPointerCapture(e.pointerId);const p=pointAt(e),q=world(p);if(tool==='pan'||e.shiftKey){drag={kind:'pan',start:p,offset:{...offset}};return}if(tool==='draw'){snapshot();points=[q];stops={};drag={kind:'draw'};edited()}else if(tool==='waypoint'){if(points.length>=MAX_POINTS)return;snapshot();points.push(q);edited()}else if(tool==='stop'){addRouteStop(q)}else if(tool==='block'){snapshot();drag={kind:'block',start:q,current:q}}});
-canvas.addEventListener('pointermove',e=>{const p=pointAt(e),q=world(p);$('coordinate').textContent=`X ${q.x.toFixed(2)} · Y ${q.y.toFixed(2)} M`;if(!drag)return;if(drag.kind==='pan'){offset.x=drag.offset.x+p.x-drag.start.x;offset.y=drag.offset.y+p.y-drag.start.y}else if(drag.kind==='draw'){const last=points.at(-1);if(points.length<MAX_POINTS&&Math.hypot(q.x-last.x,q.y-last.y)>.07)points.push(q);checked=false;update(false)}else if(drag.kind==='block')drag.current=q;draw()});
+canvas.addEventListener('pointermove',e=>{const p=pointAt(e),q=world(p);$('coordinate').textContent=`X ${roverNumber(q.x,2)} · Y ${roverNumber(q.y,2)} M`;if(!drag)return;if(drag.kind==='pan'){offset.x=drag.offset.x+p.x-drag.start.x;offset.y=drag.offset.y+p.y-drag.start.y}else if(drag.kind==='draw'){const last=points.at(-1);if(points.length<MAX_POINTS&&Math.hypot(q.x-last.x,q.y-last.y)>.07)points.push(q);checked=false;update(false)}else if(drag.kind==='block')drag.current=q;draw()});
 function pointerEnd(){if(drag?.kind==='block'){const a=drag.start,b=drag.current;if(Math.hypot(a.x-b.x,a.y-b.y)>.1)zones.push([Math.min(a.x,b.x),Math.min(a.y,b.y),Math.max(a.x,b.x),Math.max(a.y,b.y)]);edited()}drag=null;update()}
 canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoomBy(e.deltaY<0?1.12:1/1.12,pointAt(e))},{passive:false});
 function zoomBy(f,p){p=p||{x:canvas.clientWidth/2,y:canvas.clientHeight/2};const old=zoom;zoom=Math.max(.4,Math.min(8,zoom*f));offset.x=p.x-(p.x-offset.x)*zoom/old;offset.y=p.y-(p.y-offset.y)*zoom/old;draw()}
 function waitValue(v){const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.min(86400,n)):5}
 function payload(){return {points:points.map(p=>[p.x,p.y]),stops,zones,lease_id:lease}}
-function update(renderStops=true){let d=0;for(let i=1;i<points.length;i++)d+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);$('distance').innerHTML=d.toFixed(1)+'<span> m</span>';$('stopCount').textContent=Object.keys(stops).length;$('dwell').innerHTML=Object.values(stops).reduce((a,b)=>a+b,0).toFixed(0)+'<span> s</span>';$('pointCount').textContent=`${points.length} points`;$('routeText').textContent=checked?'Route checked against current map':points.length>1?'Route needs a traversability check':'Draw a route to check the path';$('routeDot').className='state-dot'+(checked?' ok':'');$('arm').hidden=!connected||state.motor_enabled||state.busy;$('start').disabled=!(connected&&state.can_start&&checked&&points.length>1&&!state.busy);$('stop').disabled=!connected;$('validate').disabled=points.length<2||!!state.busy;$('preview').disabled=points.length<2||!!state.busy;$('missionState').textContent=state.busy?(state.phase||'Driving'):state.message==='Mission complete'?'Complete':state.phase==='Stopped'?'Stopped':'Draft';syncUI();if(!renderStops)return;
- const list=$('stops');list.replaceChildren();const indices=Object.keys(stops).map(Number).sort((a,b)=>a-b);if(!indices.length){list.innerHTML='<div class="empty-stops"><span>＋</span><p>Make a stop along the way.<small>Select Add stop, then click anywhere on the route. Set a different wait for each stop.</small></p></div>';return}indices.forEach((i,n)=>{const p=points[i];if(!p)return;const card=document.createElement('div');card.className='stop-card';card.innerHTML=`<div class="stop-card-title"><span>${n+1}</span><b>Stop ${String(n+1).padStart(2,'0')}</b></div><small>X ${p.x.toFixed(2)} · Y ${p.y.toFixed(2)} m</small><label>Wait <input aria-label="Wait at stop ${n+1}" type="number" min="0" max="86400" value="${stops[i]}"> sec</label><button class="remove-stop" aria-label="Remove stop ${n+1}">×</button>`;card.querySelector('input').disabled=!!state.busy;card.querySelector('input').oninput=e=>{snapshot();stops[i]=waitValue(e.target.value);checked=false;previewAt=null;update(false);draw()};card.querySelector('button').disabled=!!state.busy;card.querySelector('button').onclick=()=>{snapshot();delete stops[i];edited()};card.tabIndex=0;card.setAttribute('role','group');card.setAttribute('aria-label',`Stop ${n+1}, ${stops[i]} seconds. Press Enter to locate on map.`);card.onclick=e=>{if(!e.target.closest('input,button,label'))focusStop(i)};card.onkeydown=e=>{if(e.key==='Enter'&&e.target===card){e.preventDefault();focusStop(i)}};list.append(card)})}
+function update(renderStops=true){let d=0;for(let i=1;i<points.length;i++)d+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);$('distance').innerHTML=roverNumber(d,1)+'<span> m</span>';$('stopCount').textContent=roverNumber(Object.keys(stops).length);$('dwell').innerHTML=roverNumber(Object.values(stops).reduce((a,b)=>a+b,0))+'<span> s</span>';$('pointCount').textContent=`${points.length} points`;$('routeText').textContent=checked?'Route checked against current map':points.length>1?'Route needs a traversability check':'Draw a route to check the path';$('routeDot').className='state-dot'+(checked?' ok':'');$('arm').hidden=!connected||state.motor_enabled||state.busy;$('start').disabled=!(connected&&state.can_start&&checked&&points.length>1&&!state.busy);$('stop').disabled=!connected;$('validate').disabled=points.length<2||!!state.busy;$('preview').disabled=points.length<2||!!state.busy;$('missionState').textContent=state.busy?(state.phase||'Driving'):state.message==='Mission complete'?'Complete':state.phase==='Stopped'?'Stopped':'Draft';syncUI();if(!renderStops)return;
+ const list=$('stops');list.replaceChildren();const indices=Object.keys(stops).map(Number).sort((a,b)=>a-b);if(!indices.length){list.innerHTML='<div class="empty-stops"><span>＋</span><p>Make a stop along the way.<small>Select Add stop, then click anywhere on the route. Set a different wait for each stop.</small></p></div>';return}indices.forEach((i,n)=>{const p=points[i];if(!p)return;const card=document.createElement('div');card.className='stop-card';card.innerHTML=`<div class="stop-card-title"><span>${n+1}</span><b>Stop ${roverNumber(n+1)}</b></div><small>X ${roverNumber(p.x,2)} · Y ${roverNumber(p.y,2)} m</small><label>Wait <input aria-label="Wait at stop ${n+1}" type="number" min="0" max="86400" value="${stops[i]}"> sec</label><button class="remove-stop" aria-label="Remove stop ${n+1}">×</button>`;card.querySelector('input').disabled=!!state.busy;card.querySelector('input').oninput=e=>{snapshot();stops[i]=waitValue(e.target.value);checked=false;previewAt=null;update(false);draw()};card.querySelector('button').disabled=!!state.busy;card.querySelector('button').onclick=()=>{snapshot();delete stops[i];edited()};card.tabIndex=0;card.setAttribute('role','group');card.setAttribute('aria-label',`Stop ${n+1}, ${stops[i]} seconds. Press Enter to locate on map.`);card.onclick=e=>{if(!e.target.closest('input,button,label'))focusStop(i)};card.onkeydown=e=>{if(e.key==='Enter'&&e.target===card){e.preventDefault();focusStop(i)}};list.append(card)})}
 function localCheck(){if(points.length<2)throw Error('Add at least two route points.');for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],count=Math.max(1,Math.ceil(Math.hypot(a.x-b.x,a.y-b.y)/(grid.resolution*.4)));if(count>100000)throw Error('Route segment too long.');for(let s=0;s<=count;s++){const x=a.x+(b.x-a.x)*s/count,y=a.y+(b.y-a.y)*s/count;if(zones.some(z=>x>=z[0]&&x<=z[2]&&y>=z[1]&&y<=z[3]))throw Error('Route crosses a no-go area.');const q=toLocal({x,y}),cx=Math.floor(q.x/grid.resolution),cy=Math.floor(q.y/grid.resolution);if(cx<0||cy<0||cx>=grid.width||cy>=grid.height)throw Error('Route leaves the map.');const v=grid.data[cy*grid.width+cx];if(v<0||v>20)throw Error('Route crosses unknown or blocked/cost space.')}}return true}
 async function api(path,{method='GET',body,signal}={}) {
   if (!base) throw Error('Connect your Pi first.');
@@ -93,14 +99,19 @@ async function api(path,{method='GET',body,signal}={}) {
   }
   if (!r.ok) {
     let msg; try {msg=(await r.json()).error;} catch {}
-    throw Error(msg || `Pi returned HTTP ${r.status}`);
+    if (msg) throw Error(msg);
+    if (r.status >= 500) {
+      throw Error(`Pi control request failed (HTTP ${r.status}, ${path}) at ${base}. Check the Pi control service. ESP32 MQTT readings use a separate connection.`);
+    }
+    throw Error(`Pi returned HTTP ${r.status} for ${path}.`);
   }
   return r;
 }
 async function checkRoute(){try{localCheck();if(connected&&state.map_revision==null)throw Error('This is a planning map. Use Preview to inspect the route. Live route checks need a navigation map and measured position.');if(connected){const r=await (await api('/api/validate',{method:'POST',body:payload()})).json();if(!r.valid)throw Error(r.message)}checked=true;update();toast(connected?'Route check passed. Nav2 will plan each segment.':'Example-map check passed. Connect Pi for a real mission.')}catch(e){checked=false;update();$('routeText').textContent=e.message;$('routeDot').className='state-dot bad';toast(e.message)}}
 let connectionPending=false;
-async function connect(e,silent=false){e?.preventDefault();if(connectionPending)return;const candidate=$('apiBase').value.trim();if(!candidate)return;connectionPending=true;try{const u=new URL(candidate);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw Error('Use a plain HTTP(S) API address.');if(location.protocol==='https:'&&u.protocol==='http:')throw Error('This hosted page requires HTTPS on the Pi. Alternatively open http://PI_IP:8088 directly.');base=u.href.replace(/\/$/,'');token=$('apiToken').value;const s=await(await api('/api/state')).json();if(!s.protocol||s.protocol!=='field-rover-v1')throw Error('This is not the rover web API.');epoch++;connected=true;state=s;lastSeen=Date.now();sessionStorage.setItem('roverApi',base);sessionStorage.setItem('roverToken',token);points=[];stops={};zones=[];history=[];checked=false;mapRevision=null;robot=null;$('connectDialog').close();$('mapEmpty').hidden=false;setConnection();if (!autoSelected) startSteeringCamera();await poll();restoreDraft();if (!silent) toast('Pi connected.')}catch(err){connected=false;setConnection();$('connectError').textContent=err.message}finally{connectionPending=false}}
-function setConnection(){ $('connection').classList.toggle('live',connected);$('connection').querySelector('span').textContent=connected?'Pi connected':'Connect rover';$('notice').className='notice'+(connected?' live':'');$('notice').querySelector('span:nth-child(2)').innerHTML=connected?'<b>Live connection.</b> Camera, QR and manual controls use your Pi. Drawn-route navigation uses a live map and measured position when available.':(localCamera?'<b>Local webcam · planning sandbox.</b> Plan stops on the example map. Connect Nav2 for live navigation.':'<b>You’re in the planning sandbox.</b> Explore the example map, or connect your Pi to work with your real rover.');$('connectInline').textContent=connected?'Connection settings →':'Connect Pi →';$('mapBadge').textContent=connected?'LIVE COSTMAP':grid.revision==='demo'?'EXAMPLE MAP':'STALE MAP';$('mapTitle').textContent=connected?'Rover / real navigation map':grid.revision==='demo'?'Workshop exploration':'Last received navigation map';$('missionHint').textContent=connected?'Check the route and position feedback before starting.':'Connect the Pi before sending a real mission.';update()}
+let piConnectionError = '';
+async function connect(e,silent=false){e?.preventDefault();if(connectionPending)return;const candidate=$('apiBase').value.trim();if(!candidate)return;releaseDirect();connectionPending=true;updateTaskPanel();try{const u=new URL(candidate);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw Error('Use a plain HTTP(S) API address.');if(location.protocol==='https:'&&u.protocol==='http:')throw Error('This hosted page requires HTTPS on the Pi. Alternatively open http://PI_IP:8088 directly.');base=u.href.replace(/\/$/,'');token=$('apiToken').value;const s=await(await api('/api/state')).json();if(!s.protocol||s.protocol!=='field-rover-v1')throw Error('This is not the rover web API.');epoch++;connected=true;piConnectionError='';state=s;lastSeen=Date.now();sessionStorage.setItem('roverApi',base);sessionStorage.setItem('roverToken',token);points=[];stops={};zones=[];history=[];checked=false;mapRevision=null;robot=null;$('connectDialog').close();$('mapEmpty').hidden=false;setConnection();if (!autoSelected) startSteeringCamera();await poll();restoreDraft();if (!silent) toast('Pi connected.')}catch(err){connected=false;piConnectionError=err.message;setConnection();$('connectError').textContent=piConnectionError}finally{connectionPending=false;updateTaskPanel()}}
+function setConnection(){ $('connection').classList.toggle('live',connected);roverLabel($('connection').querySelector('span'), connected?'Pi connected':'Connect rover');$('notice').className='notice'+(connected?' live':'');$('notice').querySelector('span:nth-child(2)').innerHTML=connected?'<b>Live connection.</b> Camera, QR and manual controls use your Pi. Drawn-route navigation uses a live map and measured position when available.':(localCamera?'<b>Local webcam · planning sandbox.</b> Plan stops on the example map. Connect Nav2 for live navigation.':'<b>You’re in the planning sandbox.</b> Explore the example map, or connect your Pi to work with your real rover.');$('connectInline').textContent=connected?'Connection settings →':'Connect Pi →';$('mapBadge').textContent=connected?'LIVE COSTMAP':grid.revision==='demo'?'EXAMPLE MAP':'STALE MAP';$('mapTitle').textContent=connected?'Rover / real navigation map':grid.revision==='demo'?'Workshop exploration':'Last received navigation map';$('missionHint').textContent=connected?'Check the route and position feedback before starting.':'Connect the Pi before sending a real mission.';update()}
 async function poll(){if(!hostActive||!connected||polling)return;polling=true;const gen=epoch;try{const s=await(await api('/api/state')).json();if(gen!==epoch)return;const wasBusy=state.busy;state=s;lastSeen=Date.now();robot=s.robot;let need=s.map_revision!==null&&s.map_revision!==mapRevision;$('mapEmpty').hidden=s.map_revision!==null;if(need){const g=await(await api('/api/map')).json();if(gen!==epoch)return;const old=grid;setGrid(g);mapRevision=s.map_revision;if(old?.revision!=='demo'){/* Preserve viewport on live map refresh. */}checked=false}$('mapAge').textContent=`COSTMAP ${Number(s.map_age||0).toFixed(1)}s · ${s.frame||'map'}`;$('feedbackText').textContent=s.can_start?'Position + motor bridge ready':s.readiness||'Waiting for navigation readiness';$('feedbackDot').className='state-dot'+(s.can_start?' ok':' bad');$('missionHint').textContent=s.can_start?(s.message||'Ready for route checks.'):(s.readiness||s.message||'Waiting for navigation inputs.');update(wasBusy!==s.busy);draw();if(s.busy)await api('/api/heartbeat',{method:'POST',body:{lease_id:lease}})}catch(e){if(gen!==epoch)return;$('missionHint').textContent=e.message;if(Date.now()-lastSeen>4500){connected=false;epoch++;state={};$('cameraToggle').checked=false;cameraOff();setConnection();$('notice').className='notice error';$('notice').querySelector('span:nth-child(2)').textContent='Pi connection lost. Reconnect to verify the rover has stopped.';toast('Connection lost. The mission lease will request a stop.')}}finally{polling=false}}
 let cameraController, lastFrameTime = -Infinity;
 async function readCamera(controller, onFrame) {
@@ -173,17 +184,17 @@ async function cameraTick() {
 }
 function setCameraFeedStatus(status) {
   $('cameraFeedStatus').dataset.state = status;
-  $('cameraState').textContent = {live:'Live', off:'Camera off', unavailable:'Camera unavailable'}[status];
+  setText('cameraState', {live:'Live', off:'Camera off', unavailable:'Camera unavailable'}[status]);
   $('cameraGPSStatus').hidden = status !== 'live';
   if (status !== 'live') $('cameraQRStatus').hidden = true;
 }
-function cameraOff(){cameraController?.abort();$('camera').hidden=true;$('camera').removeAttribute('src');$('cameraPlaceholder').hidden=false;$('cameraPlaceholder').querySelector('span').textContent='Show the webcam connected to your Pi';setCameraFeedStatus('off');if(cameraURL){URL.revokeObjectURL(cameraURL);cameraURL=null}syncCameraUI()}
+function cameraOff(){cameraController?.abort();$('camera').hidden=true;$('camera').removeAttribute('src');$('cameraPlaceholder').hidden=false;roverLabel($('cameraPlaceholder').querySelector('span'), 'Show the webcam connected to your Pi');setCameraFeedStatus('off');if(cameraURL){URL.revokeObjectURL(cameraURL);cameraURL=null}syncCameraUI()}
 function example(){if(connected||state.busy){toast('Example routes are available only while disconnected.');return}snapshot();points=[{x:0,y:0},{x:1.5,y:0},{x:2.7,y:.8},{x:2.7,y:3.6},{x:5,y:4.4},{x:6.4,y:4.4}];stops={3:5,5:10};zones=[];edited()}
 function previewPose(){const elapsed=(performance.now()-previewAt)/1000;let t=elapsed;for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],d=Math.hypot(b.x-a.x,b.y-a.y),dt=d/1.5;if(t<dt)return {x:a.x+(b.x-a.x)*t/dt,y:a.y+(b.y-a.y)*t/dt,yaw:Math.atan2(b.y-a.y,b.x-a.x)};t-=dt;if(stops[i]){if(t<Math.min(stops[i],2))return {...b,yaw:Math.atan2(b.y-a.y,b.x-a.x)};t-=Math.min(stops[i],2)}}previewAt=null;update(false);return robot}
 function animate(){draw();if(previewAt!==null)raf=requestAnimationFrame(animate)}
-function openConnect(){$('apiBase').value=base||((localCamera||embedded)?'http://127.0.0.1:8088':'')||((location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.hostname.endsWith('.local')||/^\d+\.\d+\.\d+\.\d+$/.test(location.hostname))?location.origin:'');$('apiToken').value=token;$('connectError').textContent='';$('connectDialog').showModal()}
+function openConnect(){$('apiBase').value=base||(localPiProxy ? location.origin + '/rover-pi' : '')||((localCamera||embedded)?'http://127.0.0.1:8088':'')||((location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.hostname.endsWith('.local')||/^\d+\.\d+\.\d+\.\d+$/.test(location.hostname))?location.origin:'');$('apiToken').value=token;$('connectError').textContent='';$('connectDialog').showModal()}
 function validateImport(p){if(!p||!Array.isArray(p.points)||p.points.length>MAX_POINTS||p.points.some(q=>!Array.isArray(q)||q.length!==2||q.some(v=>!Number.isFinite(v))))throw Error('Invalid route points');if(!p.stops||typeof p.stops!=='object'||Array.isArray(p.stops)||Object.entries(p.stops).some(([i,w])=>!/^\d+$/.test(i)||+i<1||+i>=p.points.length||!Number.isFinite(w)||w<0||w>86400))throw Error('Invalid timed stops');if(!Array.isArray(p.zones)||p.zones.length>100||p.zones.some(z=>!Array.isArray(z)||z.length!==4||z.some(v=>!Number.isFinite(v))||z[0]>z[2]||z[1]>z[3]))throw Error('Invalid no-go areas')}
-$('connection').onclick=$('settings').onclick=$('connectInline').onclick=openConnect;$('connectForm').onsubmit=connect;$('closeDialog').onclick=()=>$('connectDialog').close();$('disconnect').onclick=()=>{releaseDrive();connected=false;epoch++;state={};token='';base='';sessionStorage.removeItem('roverToken');sessionStorage.removeItem('roverApi');mapRevision=null;$('cameraToggle').checked=false;cameraOff();$('mapEmpty').hidden=true;points=[];stops={};zones=[];robot={x:0,y:0,yaw:0};setGrid(demoMap());setConnection();$('connectDialog').close()};
+$('connection').onclick=$('settings').onclick=$('connectInline').onclick=openConnect;$('connectForm').onsubmit=connect;$('closeDialog').onclick=()=>$('connectDialog').close();$('disconnect').onclick=()=>{releaseDrive();connected=false;piConnectionError='';epoch++;state={};token='';base='';sessionStorage.removeItem('roverToken');sessionStorage.removeItem('roverApi');mapRevision=null;$('cameraToggle').checked=false;cameraOff();$('mapEmpty').hidden=true;points=[];stops={};zones=[];robot={x:0,y:0,yaw:0};setGrid(demoMap());setConnection();$('connectDialog').close()};
 $('zoomIn').onclick=()=>zoomBy(1.25);$('zoomOut').onclick=()=>zoomBy(.8);$('fit').onclick=fit;
 const toolHints={draw:'Click and drag from the rover to sketch your route.',waypoint:'Click the rover first, then click to place each destination.',stop:'Click anywhere on your route to add a timed stop.',block:'Drag a rectangle to mark a no-go area. Real missions need Nav2 keepout filters.',pan:'Drag to explore the map. Scroll to zoom; use Fit map to reset.'};
 function selectTool(next){if(state.busy){toast('Stop the active mission before editing.');return}tool=next;document.querySelectorAll('[data-tool]').forEach(b=>{const active=b.dataset.tool===next;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});canvas.style.cursor=next==='pan'?'grab':'crosshair';$('toolHint').textContent=toolHints[next];syncUI()}
@@ -210,7 +221,7 @@ function expandCamera(value){
   $('visionPanel').classList.toggle('expanded',value);cameraBackdrop.hidden=!value;$('expandCamera').setAttribute('aria-label',value?'Close expanded camera view':'Expand camera view');$('expandCamera').title=value?'Close expanded view':'Expand camera view';}
 $('expandCamera').onclick=()=>expandCamera(!$('visionPanel').classList.contains('expanded'));cameraBackdrop.onclick=()=>expandCamera(false);
 document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{const step=b.dataset.step;if(step==='draw'||step==='stop'){selectTool(step);$('routeWorkspace').scrollIntoView({behavior:'smooth',block:'start'})}else if(step==='check')checkRoute();else{document.querySelector('.mission').scrollIntoView({behavior:'smooth',block:'center'});if(!connected)openConnect();else if($('start').disabled)toast('Check the route and rover readiness before starting.')}});
-window.addEventListener('keydown',e=>{if(e.key==='Escape'){expandCamera(false);if(connected&&!document.querySelector('dialog[open]'))$('taskEmergencyStop').click();return}if(e.target.closest('input,textarea,select,[contenteditable="true"]')||$('connectDialog').open||$('helpDialog').open)return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$('undo').click();return}if(e.ctrlKey||e.metaKey||e.altKey)return;const next={d:'draw',w:'waypoint',s:'stop',b:'block',h:'pan'}[e.key.toLowerCase()];if(next){e.preventDefault();selectTool(next)}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){expandCamera(false);if((connected||directMode())&&!document.querySelector('dialog[open]'))$('taskEmergencyStop').click();return}if(e.target.closest('input,textarea,select,[contenteditable="true"]')||$('connectDialog').open||$('helpDialog').open)return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$('undo').click();return}if(e.ctrlKey||e.metaKey||e.altKey)return;const next={d:'draw',w:'waypoint',s:'stop',b:'block',h:'pan'}[e.key.toLowerCase()];if(next){e.preventDefault();selectTool(next)}});
 let userMapChoice = null;
 let sceneRunning = true, sceneController, liveUrl, sceneGeneration = 0;
 function clearScene() {
@@ -242,13 +253,17 @@ function tripSummary(){
   const fmt=p=>p ? p.map(v=>Number(v).toFixed(2)).join(', ')+' m' : '—';
   $('tripSummary').textContent=t ? 'Route start '+fmt(t.planned[0])+' · Destination '+fmt(t.planned.at(-1))+' · Last measured position '+fmt(t.last || t.trail.at(-1))+' · Green line: recorded travel' : 'Recorded travel appears when the Pi starts a localized mission.';
 }
+const QR_REQUEST_TIMEOUT_MS = 3500;
+const QR_MOVING_SCAN_TIMEOUT_MS = 2300;
 let qrPending = false;
+let qrBadge = '';
+let qrBadgeSeenAt = 0;
 async function updateCameraQR() {
   const fix=connected && Date.now()-lastSeen<2000 && state.gps;
-  const reading=fix ? fix.lat.toFixed(7)+'°, '+fix.lon.toFixed(7)+'° · '+(fix.accuracy==null?'accuracy unknown':'σ '+fix.accuracy.toFixed(2)+' m') : 'GNSS · no fresh rover fix';
+  const reading=fix ? roverNumber(fix.lat,7)+'°, '+roverNumber(fix.lon,7)+'° · '+(fix.accuracy==null?'accuracy unknown':'σ '+roverNumber(fix.accuracy,2)+' m') : 'GNSS · no fresh rover fix';
   const preciseLocation = reading + (state.saved_base_points ? ' · Saved base route' : '');
   $('sceneGPS').textContent = preciseLocation;
-  $('cameraGPS').textContent = fix ? (fix.accuracy == null ? 'Fix acquired' : '±' + fix.accuracy.toFixed(1) + ' m') : 'No fix';
+  $('cameraGPS').textContent = fix ? (fix.accuracy == null ? 'Fix acquired' : '±' + roverNumber(fix.accuracy,1) + ' m') : 'No fix';
   $('cameraGPSStatus').title = preciseLocation;
   $('cameraGPSStatus').setAttribute('aria-label', 'GPS: ' + (fix ? preciseLocation : 'No fresh rover fix'));
   if (qrPending) return;
@@ -264,16 +279,39 @@ async function updateCameraQR() {
       if (isCamera) $('cameraQRStatus').hidden = !active;
     }
   }
-  if (!hostActive || !visible().some(([, active]) => active)) { display(''); return; }
+  if (!hostActive || (!directQr && !visible().some(([, active]) => active))) {
+    qrBadge = '';
+    display('');
+    return;
+  }
   qrPending = true;
+  const run = directQr;
+  const signal = AbortSignal.timeout(QR_REQUEST_TIMEOUT_MS);
   try {
-    const r = localCamera ? await fetch('/qr/scan', {cache:'no-store', signal:AbortSignal.timeout(3500)}) : await api('/api/qr/scan');
+    const r = localCamera ? await fetch('/qr/scan', {cache:'no-store', signal}) : await api('/api/qr/scan', {signal});
     if (!r.ok) throw Error();
     const cards = await r.json();
-    const directions = {left:'Left',right:'Right',forward:'Forward',backward:'Reverse',stop:'Stop',farmland:'Farmland'};
+    if (!Array.isArray(cards)) throw Error('Invalid scanner response');
+    // A response belongs to the run that requested it. The request timeout
+    // bounds latency even while the rover is stationary and waiting to scan.
+    if (run && directQr === run && !signal.aborted && checkDirectQr(run, performance.now())) {
+      processDirectQr(run, cards);
+    }
+    const directions = {left:'Left',right:'Right',forward:'Forward',backward:'Reverse',stop:'Stop',farmland:'Farmland',wait:'Wait'};
     const names = cards.map(card => card.label || directions[card.direction]).filter(Boolean);
-    display(names.length > 1 ? names.length + ' cards detected' : names[0] || 'Scanning');
-  } catch { display('Scanner unavailable'); }
+    const now = performance.now();
+    if (names.length) {
+      qrBadge = names.length > 1 ? names.length + ' cards detected' : names[0];
+      qrBadgeSeenAt = now;
+    } else if (now - qrBadgeSeenAt > 700) {
+      qrBadge = '';
+    }
+    display(qrBadge || 'Scanning');
+  } catch {
+    qrBadge = '';
+    display('Scanner unavailable');
+    if (run && directQr === run) stopDirectQr('QR scanner unavailable.');
+  }
   finally { qrPending = false; }
 }
 setInterval(updateCameraQR, 350);
@@ -281,8 +319,8 @@ let scenePending = false;
 
 let driveDirection = null, driveSequence = 0, drivePending = false;
 let drivePWM=128;
-try {const value=Number(localStorage.getItem('enviroRover.speedPWM')??128);if(Number.isInteger(value)&&value>=0&&value<=255)drivePWM=value;}catch{}
-function syncDriveSpeed(){ $('driveSpeed').value=drivePWM;$('driveSpeedValue').textContent=drivePWM+' / 255 PWM';$('driveSpeedFormula').textContent='Motor A: '+Math.max(0,drivePWM-35)+' · Motor B: '+drivePWM+' PWM';}
+try {const value=Number(localStorage.getItem('enviroRover.speedPWM') ?? 128);if(Number.isInteger(value)&&value>=0&&value<=255)drivePWM=value;}catch{}
+function syncDriveSpeed(){ $('driveSpeed').value=drivePWM;$('driveSpeedValue').textContent=roverNumber(drivePWM)+' / '+roverNumber(255)+' PWM';$('driveSpeedFormula').textContent='Motor A: '+Math.max(0,drivePWM-35)+' · Motor B: '+drivePWM+' PWM';}
 $('driveSpeed').oninput=()=>{drivePWM=Number($('driveSpeed').value);try{localStorage.setItem('enviroRover.speedPWM',String(drivePWM));}catch{}syncDriveSpeed();};
 syncDriveSpeed();
 
@@ -384,7 +422,7 @@ function startSteeringCamera() {
 }
 function selectSteering(automatic){
   if (operationState().active_task || operationState().fault) return;
-  releaseDrive();autoSelected=automatic;autoStatus='';
+  stopDirectQr();releaseDirect();releaseDrive();autoSelected=automatic;autoStatus='';
   $('autoMode').setAttribute('aria-pressed',String(automatic));
   $('manualMode').setAttribute('aria-pressed',String(!automatic));
   $('autoControls').hidden=!automatic;
@@ -418,6 +456,12 @@ $('recoverFarmland').onclick = async () => {
   catch (error) { toast(error.message); }
 };
 async function emergencyStop() {
+  if (directMode()) {
+    stopDirectQr();
+    releaseDirect();
+    sendDirect('estop');
+    return;
+  }
   autoArmed = false;
   driveDirection = null;
   autoStatus = 'Stop requested';
@@ -426,9 +470,7 @@ async function emergencyStop() {
 }
 $('taskEmergencyStop').onclick = emergencyStop;
 
-function setText(id, value) {
-  if ($(id).textContent !== value) $(id).textContent = value;
-}
+function setText(id, value) { roverLabel($(id), value); }
 
 function viewNode(tag, text, className) {
   const node = document.createElement(tag);
@@ -458,15 +500,15 @@ function updateTaskPanel() {
   const remaining = task?.remaining_s;
   const phaseTime = task?.phase_remaining_s;
   const wait = Number.isFinite(remaining)
-    ? 'Task Going On, Wait approximately ' + Math.ceil(remaining) + ' seconds'
+    ? 'Task Going On, Wait approximately ' + roverNumber(Math.ceil(remaining)) + ' seconds'
     : 'Task Going On, Wait — estimating remaining time';
-  const title = mode === 'Connecting' ? 'Contacting the Pi' : !connected ? 'Rover offline' :
+  const title = mode === 'Connecting' ? 'Contacting the Pi' : !connected ? 'Pi controls disconnected' :
     fault ? 'Recovery required' : task?.phase || (mode === 'Automatic' ? 'Scanning for QR cards' : state.manual_ready ? 'Ready for manual control' : 'Waiting for motor feedback');
   const message = mode === 'Connecting' ? 'Checking the controller and its current state.' :
-    !connected ? 'Connect the Pi to view live controls and task status.' :
+    !connected ? (piConnectionError || 'Connect the Pi to view live controls and task status.') :
     fault ? operation.fault || 'Verify the rover and its outputs before recovering.' :
-    waiting ? wait : active ? (Number.isFinite(remaining) ? 'Approximately ' + Math.ceil(remaining) + ' seconds remaining' :
-      Number.isFinite(phaseTime) ? 'This phase: approximately ' + Math.ceil(phaseTime) + ' seconds left' :
+    waiting ? wait : active ? (Number.isFinite(remaining) ? 'Approximately ' + roverNumber(Math.ceil(remaining)) + ' seconds remaining' :
+      Number.isFinite(phaseTime) ? 'This phase: approximately ' + roverNumber(Math.ceil(phaseTime)) + ' seconds left' :
         'Manual drive is locked until the task finishes.') :
     mode === 'Automatic' ? autoStatus || operation.scanner_phase || 'Waiting for an eligible card.' :
       operation.last_result?.phase === 'Completed' ? operation.last_result.type + ' completed.' :
@@ -478,7 +520,7 @@ function updateTaskPanel() {
   setText('taskSummary', message);
   const meta = active && [task.type || 'QR movement', task.plot || task.label,
     task.id ? 'Task ' + task.id.slice(0, 8) : '', task.step ? 'Phase ' + task.step + ' of ' + task.steps : '',
-    waiting && Number.isFinite(phaseTime) ? 'This phase: ~' + Math.ceil(phaseTime) + ' s' : ''].filter(Boolean).join(' · ');
+    waiting && Number.isFinite(phaseTime) ? 'This phase: ~' + roverNumber(Math.ceil(phaseTime)) + ' s' : ''].filter(Boolean).join(' · ');
   $('taskMeta').hidden = !meta;
   setText('taskMeta', meta || '');
   $('cancelManualRequest').hidden = !waiting;
@@ -490,38 +532,30 @@ function updateTaskPanel() {
     $('taskProgressMeter').value = task.phase_progress;
     setText('taskProgressLabel', task.progress_source === 'Calibrated timing' ? 'Estimated phase progress' : 'Measured phase progress');
   }
-  renderPayload(operation);
-  renderResults(connected ? state.farmland : null, connected ? operation.last_result : null);
+  renderDispensing();
+  renderServoMaintenance(operation);
+  updatePiMqttReadings();
+  renderDirectControls();
 }
 
 let servoRequestPending = false;
-function renderPayload(operation) {
+let lastReportedRoverId;
+function renderServoMaintenance(operation) {
   const payload = connected ? state.payload : null;
   const live = payload?.readings;
-  const format = (value, unit) => Number.isFinite(value) ? String(value) + ' ' + unit : 'Unavailable';
-  setText('payloadStatus', !connected ? 'Connect the Pi to view hardware status.' :
-    !payload ? 'Update the Pi control service for ESP32 hardware readings.' :
-    !live ? 'No payload reply. Check the ESP32 USB link and firmware.' :
-    live.npk_available ? 'ESP32 responding · NPK sensor detected' : 'ESP32 responding · No valid NPK reading');
-  $('payloadReadings').hidden = !live;
-  setText('payloadSoil', format(live?.soil_raw, 'ADC'));
-  setText('payloadWater', format(live?.water_raw, 'ADC'));
-  setText('payloadRange', format(live?.range_cm, 'cm'));
-  setText('payloadLight', format(live?.light_lux, 'lx'));
-  const caps = live?.capabilities;
-  let actuators = '';
-  if (live) {
-    actuators = 'Probe: ' + (caps != null && !(caps & 1) ? 'disabled in firmware' : live.probe || 'unknown') +
-      ' · ' + (caps & 8 ? 'Spray relay: ' : 'Fertilizer relay: ') + (caps != null && !(caps & 2) ? 'disabled in firmware' : live.fertilizer_off ? 'off' : 'on');
-    if (!payload.farmland_configured) actuators += ' · Farmland not configured on the Pi';
+  const reportedId = live?.mqtt_device_id;
+  if (embedded) {
+    lastReportedRoverId = reportedId;
+    $('usePiMqttId').hidden = piMqttId !== undefined || !reportedId || reportedId === mqttDisplay?.id;
   }
-  setText('payloadActuators', actuators);
+  const caps = live?.capabilities;
   const presets = payload?.servo_presets || [];
-  const enabled = caps != null && Boolean(caps & 4);
-  setText('payloadServoStatus', !live ? '' : !enabled ? 'Servo tests require firmware with servos enabled.' :
-    !presets.length ? 'Configure calibrated servo test presets on the Pi.' :
+  const enabled = Boolean(caps & 4);
+  $('payloadMaintenance').hidden = !presets.length;
+  setText('payloadServoStatus', !live ? 'Waiting for ESP32 feedback.' :
+    !enabled ? 'Servo tests require firmware with servos enabled.' :
       live.servo_active ? 'Servo output active' : 'Servo tests use the Pi’s calibrated presets.');
-  for (const [id, servo] of [['payloadServo180','servo180'], ['payloadServo360','servo360']]) {
+  for (const [id, servo] of [['payloadServo180','servo180'], ['payloadServo360','servo360'], ['payloadServoDispenser','servo_dispenser']]) {
     $(id).hidden = !presets.includes(servo);
     $(id).disabled = servoRequestPending || !enabled || live?.servo_active !== false ||
       live?.probe !== 'retracted' || !live?.fertilizer_off || !state.manual_ready ||
@@ -542,87 +576,535 @@ async function testServo(servo) {
 }
 $('payloadServo180').onclick = () => testServo('servo180');
 $('payloadServo360').onclick = () => testServo('servo360');
+$('payloadServoDispenser').onclick = () => testServo('servo_dispenser');
 
-let pestPending = false;
-async function refreshPestMonitor() {
-  if (!$('roverResults').open || !hostActive || pestPending) return;
-  if (!connected) {
-    setText('pestStatus', 'Connect the Pi to view pest detection.');
-    setText('pestReading', '');
+async function startDispensing(kind) {
+  if (directQr || mqttDisplay?.inspection?.state === 'running' || dispensingPending || $(kind + 'PumpStart').disabled) return;
+  if (kind === 'fertilizer' && directMode()) {
+    sendDirect('fertilizer');
     return;
   }
-  pestPending = true;
-  const generation = epoch;
+  dispensingPending = true;
+  renderDispensing();
   try {
-    const status = await (await api('/api/pest/status')).json();
-    if (epoch !== generation) return;
-    const phases = {scanning:'Scanning', confirmed:'Pest confirmed', camera_unavailable:'Camera or classifier unavailable',
-      spray_requested:'Pulse requested', pulse_completed:'ESP32 confirmed pulse ended',
-      stopped:'Detector stopped', detector_error:'Detector failed', stop_unconfirmed:'Pump shutdown unconfirmed'};
-    setText('pestStatus', !status.available ? 'No recent detector report. Start the detector on the Pi.' :
-      (phases[status.phase] || 'Unknown') + (status.armed === true ? ' · Spray armed on Pi' :
-        ['stopped','detector_error','stop_unconfirmed'].includes(status.phase) ? '' : ' · Detection only'));
-    const reading = status.label && Number.isFinite(status.confidence)
-      ? status.label + ' · ' + Math.round(status.confidence * 100) + '% confidence' : '';
-    const pulses = status.pulses > 0 ? status.pulses + ' completed pump pulses' : '';
-    setText('pestReading', status.available ? [reading, pulses].filter(Boolean).join(' · ') : '');
-  } catch {
-    if (epoch === generation) {
-      setText('pestStatus', 'Pest monitor unavailable. Check the Pi camera and control services.');
-      setText('pestReading', '');
-    }
+    const replayGuard = state.state_time;
+    await api('/api/payload/dispense', {method:'POST', body:{kind, state_time:replayGuard}});
+    await poll();
+  } catch (error) {
+    toast(error.message);
   } finally {
-    pestPending = false;
+    dispensingPending = false;
+    renderDispensing();
   }
 }
-$('roverResults').addEventListener('toggle', refreshPestMonitor);
-setInterval(refreshPestMonitor, 1500);
+$('fertilizerPumpStart').onclick = () => startDispensing('fertilizer');
+$('waterPumpStart').onclick = () => startDispensing('water');
+$('dispensingStop').onclick = emergencyStop;
 
-let resultsKey;
-function renderResults(farm, lastResult) {
-  const key = JSON.stringify([farm, lastResult, connected]);
-  if (resultsKey === key) return;
-  resultsKey = key;
-  const summary = !connected ? 'Connect to view results' : farm?.soil ? farm.plot + ' · ' + farm.phase :
-    farm?.error ? 'Measurement or treatment needs attention' : lastResult?.phase === 'Completed' ? lastResult.type + ' completed' : 'No measurements yet';
-  setText('resultSummary', summary);
-  const root = $('taskDetails');
-  root.replaceChildren();
-  if (!farm) {
-    root.append(viewNode('p', connected ? 'Scan a Farmland card to collect the first soil reading.' :
-      'Soil readings and treatment results appear here when the Pi is connected.'));
-    if (lastResult) root.append(viewNode('p', lastResult.type + ' · ' + lastResult.phase + (lastResult.error ? ' · ' + lastResult.error : '')));
+function renderDispensing() {
+  const operation = operationState();
+  const options = state.dispensing;
+  for (const kind of ['water', 'fertilizer']) {
+    $(kind + 'PumpStart').disabled = !connected || dispensingPending || !options?.[kind] ||
+      !options.ready || Boolean(operation.active_task || operation.fault || driveDirection || autoArmed);
+  }
+  $('dispensingStop').hidden = !connected || !state.farmland?.dispense || !state.farmland.active;
+  if (!connected) {
+    for (const dispenser of ['fertilizer', 'water']) {
+      setText(dispenser + 'Status', 'Connect the Pi');
+      setText(dispenser + 'Detail', '');
+    }
     return;
   }
-  const timestamp = Number.isFinite(farm.measured_at)
-    ? 'Measured ' + new Date(farm.measured_at * 1000).toLocaleString() : 'No valid measurement for this task';
-  root.append(viewNode('p', [farm.plot, timestamp].filter(Boolean).join(' · '), 'result-caption'));
-  if (farm.id) root.append(viewNode('p', 'Task ' + farm.id, 'result-caption'));
-  const grid = viewNode('dl', '', 'soil-grid');
-  for (const [key, name] of Object.entries({n:'Nitrogen', p:'Phosphorus', k:'Potassium', moisture:'Soil moisture'})) {
-    const reading = farm.soil?.[key];
-    const item = viewNode('div', '', 'soil-reading');
-    item.append(viewNode('dt', name), viewNode('dd', reading ? reading.value + ' ' + reading.unit : 'Unavailable', 'soil-value'));
-    if (reading) item.append(viewNode('dd', (reading.low ? '↓ Low' : '✓ Acceptable') + ' · Min ' + reading.threshold,
-      reading.low ? 'soil-low' : 'soil-ok'));
-    grid.append(item);
+
+  const farm = state.farmland;
+  const configured = state.payload?.farmland_configured ?? Boolean(state.operating_settings?.farmland);
+  const idle = configured ? 'No treatment recorded' : 'Setup required on the Pi';
+  const caps = state.payload?.readings?.capabilities;
+  const fertilizerMode = !Number.isInteger(caps) ? '' : caps & 8 ? 'ESP32 reports spray mode' :
+    !(caps & 2) ? 'Fertilizer output disabled in ESP32 firmware' : '';
+  setText('fertilizerStatus', farm?.fertilizer && farm.fertilizer !== 'Not requested' ? farm.fertilizer : fertilizerMode || idle);
+  setText('fertilizerDetail', [farm?.plot,
+    farm?.low_nutrients?.length ? 'Low nutrients: ' + farm.low_nutrients.join(', ') : ''].filter(Boolean).join(' · '));
+  const irrigationConfigured = state.operating_settings?.irrigation_configured;
+  const irrigationIdle = !configured ? 'Configure Farmland on the Pi' :
+    irrigationConfigured === false ? 'Configure Enviro Advanced on the Pi' : 'Waiting for an irrigation task';
+  const irrigationStatus = farm?.tank && farm.tank !== 'Not requested' ? farm.tank : irrigationIdle;
+  setText('waterStatus', irrigationStatus);
+  setText('waterDetail', [farm?.plot, farm?.warning === 'Acknowledged' ? 'Enviro Advanced acknowledged the low-moisture warning' : '',
+    Number.isFinite(farm?.tank_timeout_s) ? 'Confirmation timeout in ' + Math.ceil(farm.tank_timeout_s) + ' s' : ''
+  ].filter(Boolean).join(' · '));
+}
+
+for (const button of document.querySelectorAll('[data-open-rover-wifi]')) {
+  button.onclick = () => $('roverWifiDialog').showModal();
+}
+$('roverMqttRefresh').onclick = () => {
+  window.parent.postMessage({type:'enviroos:rover-refresh'}, location.origin);
+};
+
+let mqttDisplay;
+let piMqttId;
+let mqttHold = null;
+let mqttHoldTimer;
+let directQr = null;
+let directQrStatus = '';
+
+const inspectionFields = {
+  wait:['Wait',120,1], lower:['Lower NPK arm',120,1], water:['Sample water input',30,3],
+  raise:['Raise NPK arm',120,1], fertilizer:['Run fertilizer relay',4,1],
+};
+const inspectionKey = 'enviroRover.inspection';
+const nextInspectionId = () => Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-');
+const inspectionDefaults = [{action:'wait',seconds:1},{action:'lower',seconds:1},
+  {action:'water',seconds:0},{action:'raise',seconds:1}];
+let inspectionSaved;
+let inspectionRequest;
+try {
+  const saved = JSON.parse(localStorage.getItem(inspectionKey));
+  if (saved?.steps?.length && saved.steps.every(step => Object.hasOwn(inspectionFields, step.action))) inspectionSaved = saved;
+} catch {}
+
+function sendInspection(action, id, steps) {
+  window.parent.postMessage({type:'enviroos:rover-inspection',action,id,steps}, location.origin);
+}
+
+function addInspectionStep(step = inspectionDefaults[0]) {
+  const list = $('inspectionSteps');
+  const row = document.createElement('li');
+  const number = document.createElement('span');
+  const action = document.createElement('select');
+  action.setAttribute('aria-label', roverText('Action'));
+  const seconds = document.createElement('input');
+  seconds.type = 'number';
+  seconds.setAttribute('aria-label', roverText('Wait in seconds'));
+  seconds.required = true;
+  const remove = document.createElement('button');
+  remove.className = 'button';
+  remove.type = 'button';
+  roverLabel(remove, 'Remove');
+  for (const [value, [label]] of Object.entries(inspectionFields)) {
+    const option = document.createElement('option');
+    option.value = value;
+    roverLabel(option, label);
+    action.append(option);
   }
-  root.append(grid);
-  const treatment = viewNode('dl', '', 'treatment-grid');
-  for (const [label, value] of [
-    ['Probe', farm.probe], ['Fertilizer', farm.fertilizer + (farm.low_nutrients?.length ? ' · Low ' + farm.low_nutrients.join(', ') : '')],
-    ['Moisture warning', farm.warning], ['Water tank', farm.tank],
-  ]) {
-    const item = viewNode('div');
-    item.append(viewNode('dt', label), viewNode('dd', value || 'Unavailable'));
-    treatment.append(item);
+  function updateTiming(value) {
+    const [, max, initial] = inspectionFields[action.value];
+    seconds.min = initial;
+    seconds.step = action.value === 'water' ? 3 : 1;
+    seconds.max = max;
+    seconds.value = value >= initial ? value : initial;
   }
-  root.append(treatment);
-  if (farm.tank_timeout_s != null) root.append(viewNode('p', 'Tank confirmation timeout: ' + Math.ceil(farm.tank_timeout_s) + ' s remaining.'));
-  if (farm.error) root.append(viewNode('p', farm.error, 'soil-low'));
-  if (farm.phase === 'Fault') root.append(viewNode('p', farm.outputs_stopped ? 'Output shutdown confirmed.' :
-    'Output shutdown unconfirmed. Verify the probe and outputs before checking recovery.'));
-  if (farm.recovery) root.append(viewNode('p', farm.recovery));
+  action.value = step.action;
+  updateTiming(step.seconds);
+  action.onchange = () => updateTiming();
+  function renumber() {
+    [...list.children].forEach((item, i) => item.firstElementChild.textContent = roverNumber(i + 1));
+    $('inspectionAdd').disabled = list.children.length >= 12;
+  }
+  remove.onclick = () => { row.remove(); renumber(); };
+  row.append(number, action, seconds, remove);
+  list.append(row);
+  renumber();
+}
+
+function saveInspection() {
+  const steps = [...$('inspectionSteps').children].map(row => ({
+    action: row.children[1].value,
+    seconds: Number(row.children[2].value),
+  }));
+  let probeDown = false;
+  for (const {action} of steps) {
+    if (action === 'lower' || action === 'raise') probeDown = action === 'lower';
+    if (action === 'fertilizer' && probeDown) {
+      setText('inspectionStatus', 'Raise the probe before running the fertilizer relay.');
+      return false;
+    }
+  }
+  if (!steps.length || probeDown) {
+    setText('inspectionStatus', probeDown ? 'Add a Raise NPK arm step before finishing.' : 'Add at least one inspection step.');
+    return false;
+  }
+  const routine = {steps, useQr:$('inspectionUseQr').checked};
+  try { localStorage.setItem(inspectionKey, JSON.stringify(routine)); }
+  catch { setText('inspectionStatus', 'This browser could not save the inspection routine.'); return false; }
+  inspectionSaved = routine;
+  setText('inspectionStatus', 'Inspection routine saved.');
+  return true;
+}
+
+function renderInspectionControls(ready, busy) {
+  const operation = mqttDisplay?.inspection;
+  const running = operation?.state === 'running';
+  $('inspectionRun').disabled = !ready || busy || Boolean(directQr || mqttHold || inspectionRequest);
+  $('inspectionStop').hidden = !running;
+  $('inspectionRun').title = ready ? '' : roverText('Connect the ESP32 over MQTT to run an inspection.');
+  if (running && operation.step) {
+    const label = roverText(inspectionFields[operation.action]?.[0] || 'Inspection');
+    $('inspectionStatus').textContent = roverNumber(operation.step) + '/' + roverNumber(operation.count) + ' · ' + label;
+    delete $('inspectionStatus').dataset.roverText;
+  } else if (operation && (operation.id !== renderedInspection?.id || operation.state !== renderedInspection?.state) && operation.state !== 'running') {
+    setText('inspectionStatus', operation.state === 'completed' ? 'Inspection complete.' : operation.message);
+  }
+  renderedInspection = operation;
+}
+
+let renderedInspection;
+for (const step of inspectionSaved?.steps || inspectionDefaults) addInspectionStep(step);
+$('inspectionUseQr').checked = Boolean(inspectionSaved?.useQr);
+$('inspectionAdd').onclick = () => addInspectionStep();
+$('inspectionForm').onsubmit = event => { event.preventDefault(); saveInspection(); };
+$('inspectionRun').onclick = () => {
+  if ($('inspectionRun').disabled || !$('inspectionForm').reportValidity() || !saveInspection()) return;
+  const id = nextInspectionId();
+  inspectionRequest = id;
+  $('inspectionRun').disabled = true;
+  setText('inspectionStatus', 'Starting inspection…');
+  sendInspection('start', id, inspectionSaved.steps);
+  setTimeout(() => {
+    if (inspectionRequest !== id) return;
+    inspectionRequest = null;
+    setText('inspectionStatus', 'The inspection did not start.');
+  }, 5000);
+};
+$('inspectionStop').onclick = () => sendInspection('stop');
+
+function stopDirectQr(status = '') {
+  if (!directQr) return;
+  const inspecting = directQr.task?.action === 'inspect' &&
+    (!directQr.task.completed || mqttDisplay?.directBusy);
+  directQr = null;
+  directQrStatus = status;
+  sendDirect(inspecting ? 'estop' : 'release');
+}
+
+const qrMovements = ['left', 'right', 'forward', 'backward'];
+function validQrStep({action, seconds}) {
+  return Number.isInteger(seconds) && (
+    qrMovements.includes(action) && seconds >= 1 && seconds <= 25 ||
+    action === 'wait' && seconds >= 1 && seconds <= 3600 ||
+    action === 'stop' && seconds === 0 ||
+    action === 'inspect' && seconds >= 0 && seconds <= 120
+  );
+}
+
+function startDirectQrStep(run, now) {
+  const {action, seconds} = run.steps[run.step];
+  const direction = action === 'backward' ? 'reverse' : qrMovements.includes(action) ? action : null;
+  if (direction && now - run.lastScan > QR_MOVING_SCAN_TIMEOUT_MS) {
+    stopDirectQr('QR steering stopped because the camera scan became stale.');
+    return;
+  }
+  run.task = {action, direction, deadline: now + (action === 'stop' ? 250 : seconds * 1000)};
+  if (action === 'inspect') {
+    run.task.ackBy = now + 5000;
+    run.task.finishBy = now + 120000;
+    run.task.statusRevision = mqttDisplay.firmwareStatusRevision;
+    if (inspectionSaved?.useQr) {
+      run.task.inspectionId = nextInspectionId();
+      const budget = inspectionSaved.steps.reduce((total, step) =>
+        total + (step.action === 'water' ? step.seconds * 3 : step.seconds + 8), 8);
+      run.task.finishBy = now + budget * 1000;
+      sendInspection('start', run.task.inspectionId, inspectionSaved.steps);
+    } else sendDirect('mission');
+  } else if (direction) sendDirect(direction, run.speed);
+  else sendDirect('release');
+  directQrStatus = run.label + ' · ' + roverNumber(run.step + 1) + '/' +
+    roverNumber(run.steps.length) + ' · ' + roverText(({inspect:'Inspect', wait:'Wait', stop:'Stop',
+      left:'Left', right:'Right', forward:'Forward', backward:'Backward'})[action]);
+}
+
+function processDirectQr(run, cards) {
+  const now = performance.now();
+  run.lastScan = now;
+  const shown = new Set(cards.map(card => card?.payload).filter(Boolean));
+  for (const [id, absentSince] of run.consumed) {
+    if (shown.has(id)) run.consumed.set(id, null);
+    else if (absentSince === null) run.consumed.set(id, now);
+    else if (now - absentSince >= 1000) run.consumed.delete(id);
+  }
+  if (cards.some(card => card?.direction === 'stop')) {
+    stopDirectQr('Stopped by QR card.');
+    return;
+  }
+  if (run.steps || now < run.nextScan) return;
+  const card = cards.filter(c => c && typeof c.payload === 'string' &&
+     [...qrMovements,'wait','sequence'].includes(c.direction) &&
+     Number.isFinite(c.area) && c.area > 0 && !run.consumed.has(c.payload))
+    .sort((a,b) => b.area-a.area || a.payload.localeCompare(b.payload))[0];
+  if (!card) return;
+  run.consumed.set(card.payload, null);
+  const steps = card.direction === 'sequence' ? card.steps : [{action:card.direction, seconds:card.wait}];
+  if (!Array.isArray(steps) || !steps.length || steps.length > 20 ||
+      !steps.every(step => step && validQrStep(step))) {
+    directQrStatus = 'This QR card has an invalid command or duration.';
+    return;
+  }
+  Object.assign(run, {steps, step:0, label:card.label || card.direction});
+  startDirectQrStep(run, now);
+}
+
+function checkDirectQr(run, now) {
+  if (!directMode() || !hostActive || document.hidden || !mqttDisplay?.directReady ||
+      mqttDisplay.id !== run.device || (mqttDisplay.directBusy && run.task?.action !== 'inspect')) {
+    stopDirectQr('QR steering stopped. Check the ESP32 connection.');
+    return false;
+  }
+  if (run.task?.direction && now - run.lastScan > QR_MOVING_SCAN_TIMEOUT_MS) {
+    stopDirectQr('QR steering stopped because the camera scan became stale.');
+    return false;
+  }
+  return true;
+}
+
+function tickDirectQr() {
+  const run = directQr;
+  if (!run) return;
+  const now = performance.now();
+  if (!checkDirectQr(run, now)) return;
+  const task = run.task;
+  if (!task) {
+    if (run.steps && now >= run.nextScan) startDirectQrStep(run, now);
+    return;
+  }
+  if (task.action === 'inspect') {
+    if ((!task.started && now >= task.ackBy) || ((!task.completed || mqttDisplay.directBusy) && now >= task.finishBy)) {
+      stopDirectQr('The ESP32 did not confirm inspection.');
+      return;
+    }
+    if (!task.completed || mqttDisplay.directBusy) return;
+  }
+  if (now >= task.deadline) {
+    if (task.direction) sendDirect('release');
+    run.task = null;
+    run.nextScan = now + 250;
+    if (++run.step < run.steps.length) return;
+    run.steps = null;
+    directQrStatus = 'Scanning for the next eligible QR card.';
+    setTimeout(() => { if (directQr === run) updateCameraQR(); }, 250);
+  } else if (task.direction) {
+    // Keep the parent lease alive only while the camera and telemetry are fresh.
+    sendDirect('hold');
+  }
+}
+
+$('directQrStart').onclick = () => {
+  if ($('directQrStart').disabled) return;
+  releaseDirect();
+  directQrStatus = 'Scanning for an eligible QR card.';
+  directQr = {device:mqttDisplay.id, speed:drivePWM, lastScan:0, nextScan:0,
+    consumed:new Map(), task:null};
+  updateCameraQR();
+};
+$('directQrStop').onclick = () => stopDirectQr('QR steering stopped.');
+
+const sendDirect = (action, speed) => window.parent.postMessage({
+  type:'enviroos:rover-direct', action, speed,
+}, location.origin);
+function releaseDirect() {
+  if (!mqttHold) return;
+  mqttHold = null;
+  clearInterval(mqttHoldTimer);
+  sendDirect('release');
+}
+function directMode() {
+  const operation = operationState();
+  const piOwnsControl = connected && (state.manual_ready || state.busy ||
+    operation.active_task || operation.fault || operation.mode === 'Automatic' || autoArmed);
+  return embedded && !connectionPending && piMqttId === undefined &&
+    !piOwnsControl && Boolean(mqttDisplay?.reading?.expanded);
+}
+function renderDirectControls() {
+  const panel = $('roverDirect');
+  const direct = directMode();
+  panel.hidden = !direct;
+  document.documentElement.classList.toggle('direct-mqtt-control', direct);
+  const ready = direct && mqttDisplay?.directReady;
+  const busy = Boolean(mqttDisplay?.directBusy);
+  renderInspectionControls(ready, busy);
+  if (!ready || busy) releaseDirect();
+  if (!direct && directQr) stopDirectQr();
+  if (direct) {
+    setText('taskTitle', 'ESP32 control over MQTT');
+    setText('taskSummary', connected ? 'Pi camera connected' : 'Pi camera disconnected');
+    $('taskEmergencyStop').hidden = false;
+    $('taskEmergencyStop').disabled = mqttDisplay.connection !== 'connected';
+    setText('steerStatus', busy ? 'Firmware operation in progress' :
+      ready ? 'Hold a direction to drive. Release to stop.' : 'Waiting for ESP32 readings');
+    for (const button of document.querySelectorAll('[data-drive]')) button.disabled = !ready || busy || autoSelected;
+    const firmwareMission = (mqttDisplay.reading?.mission ?? 0) !== 0 ||
+      mqttDisplay.firmwareStatus?.startsWith('FARM MISSION STARTED');
+    $('autoMode').disabled = !ready;
+    $('autoMode').title = 'ESP32 firmware mission over MQTT';
+    $('autoStart').disabled = !ready || busy || Boolean(mqttHold || directQr);
+    $('directQrStart').hidden = Boolean(directQr);
+    $('directQrStart').disabled = !ready || busy || !connected || drivePWM <= 0;
+    $('directQrStop').hidden = !directQr;
+    $('directQrStart').title = !connected ? 'Connect the Pi camera and QR scanner first.' :
+      drivePWM <= 0 ? 'Set a drive speed above zero.' : '';
+    $('manualMode').disabled = busy;
+    $('manualMode').setAttribute('aria-pressed', String(!autoSelected));
+    $('autoMode').setAttribute('aria-pressed', String(autoSelected));
+    $('autoControls').hidden = !autoSelected;
+    setText('autoDescription', directQrStatus || (firmwareMission ? 'ESP32 mission running over MQTT.' :
+      !connected ? 'Connect the Pi for QR scanning. The firmware mission works without it.' :
+      'Each QR card sets the direction and how many seconds to move.'));
+    setText('autoStart', 'Start firmware mission');
+    $('autoCancelMqtt').hidden = !firmwareMission;
+    $('autoCancelMqtt').disabled = !ready;
+    if (directQr || mqttDisplay.inspection?.state === 'running') $('waterPumpStart').disabled = true;
+    $('fertilizerPumpStart').disabled = !ready || busy || Boolean(directQr);
+    setText('fertilizerTitle', 'Rover fertilizer dispenser');
+    setText('fertilizerStatus', mqttDisplay.reading?.dispensing ? 'Dispensing' : ready ? 'Ready' : 'Waiting for ESP32 readings');
+    setText('fertilizerPumpStart', 'Dispense fertilizer');
+  } else {
+    $('autoMode').removeAttribute('title');
+    setText('autoDescription', 'Scans for the nearest eligible QR card.');
+    setText('autoStart', 'Start');
+    $('autoCancelMqtt').hidden = true;
+    $('directQrStart').hidden = true;
+    $('directQrStop').hidden = true;
+    setText('fertilizerTitle', 'Rover fertilizer pump');
+    setText('fertilizerPumpStart', 'Start fertilizer pump');
+  }
+  const reply = mqttDisplay?.firmwareStatus || '';
+  if ($('roverDirectReply').textContent !== reply) $('roverDirectReply').textContent = reply;
+  for (const button of panel.querySelectorAll('[data-mqtt-action]')) {
+    button.disabled = !ready || Boolean(directQr) || (busy && !['cancel','pump-off'].includes(button.dataset.mqttAction));
+  }
+}
+function beginDirect(button) {
+  if (autoSelected || button.disabled || mqttHold || drivePWM <= 0) return;
+  mqttHold = button;
+  sendDirect(button.dataset.drive === 'back' ? 'reverse' : button.dataset.drive, drivePWM);
+  mqttHoldTimer = setInterval(() => sendDirect('hold'), 150);
+}
+for (const button of document.querySelectorAll('[data-mqtt-action]')) {
+  button.onclick = () => {
+    if (button.dataset.mqttAction === 'estop') releaseDirect();
+    sendDirect(button.dataset.mqttAction);
+  };
+}
+window.addEventListener('blur', () => {stopDirectQr();releaseDirect();});
+window.addEventListener('pagehide', () => {stopDirectQr();releaseDirect();});
+document.addEventListener('visibilitychange', () => { if (document.hidden) {stopDirectQr();releaseDirect();} });
+
+function updatePiMqttReadings() {
+  const reading = connected ? state.payload?.readings : null;
+  if (reading?.transport === 'mqtt') {
+    const id = reading.mqtt_device_id || '';
+    if (id !== piMqttId) {
+      piMqttId = id;
+      if (embedded) window.parent.postMessage({type:'enviroos:rover-pi-mqtt'}, location.origin);
+    }
+  }
+  if (piMqttId === undefined) return;
+  $('roverMqttPanel').hidden = false;
+  $('roverMqttRefresh').hidden = true;
+  $('roverMqttForm').hidden = true;
+  $('roverMqttSettingsHelp').hidden = true;
+  $('usePiMqttId').hidden = true;
+  renderMqttTelemetry({
+    id:piMqttId, connection: connected && reading ? 'connected' : 'closed',
+    reading: reading?.transport === 'mqtt' ? {
+      water:reading.water_raw, soil:reading.soil_raw, distance:reading.range_cm,
+      temperature:reading.temperature_raw, probeAngle:reading.npk_servo_angle,
+      dispenserAngle:reading.dispenser_servo_angle,
+      light:reading.light_lux, pump:typeof reading.fertilizer_off === 'boolean' ? !reading.fertilizer_off : null,
+      n:reading.n_mgkg, p:reading.p_mgkg, k:reading.k_mgkg, servoActive:reading.servo_active,
+    } : null,
+  }, true);
+}
+
+if (embedded) {
+  $('roverMqttPanel').hidden = false;
+  $('roverMqttSettings').hidden = false;
+  $('roverMqttForm').onsubmit = event => {
+    event.preventDefault();
+    const id = $('roverMqttId').value.trim();
+    if (!/^[\x21-\x7e]{0,64}$/.test(id) || /[\/+#]/.test(id)) {
+      setText('roverMqttError', 'Use the exact ID from farmrover/<ID>/data.');
+      return;
+    }
+    setText('roverMqttError', 'Device ID saved.');
+    $('roverMqttId').blur();
+    window.parent.postMessage({type:'enviroos:rover-mqtt-id', id}, location.origin);
+  };
+  $('usePiMqttId').onclick = () => {
+    if (!lastReportedRoverId) return;
+    $('roverMqttId').value = lastReportedRoverId;
+    $('roverMqttForm').requestSubmit();
+  };
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== window.parent ||
+        event.data?.type !== 'enviroos:rover-telemetry') return;
+    const newStatus = mqttDisplay?.firmwareStatusRevision !== event.data.firmwareStatusRevision;
+    mqttDisplay = event.data;
+    const inspectionUpdate = mqttDisplay.inspection;
+    if (inspectionRequest && inspectionUpdate?.id === inspectionRequest) inspectionRequest = null;
+    const inspectionTask = directQr?.task;
+    if (inspectionTask?.inspectionId && inspectionTask.inspectionId === inspectionUpdate?.id) {
+      inspectionTask.started = true;
+      if (inspectionUpdate.state === 'completed') inspectionTask.completed = true;
+      if (inspectionUpdate.state === 'failed') {
+        directQr = null;
+        directQrStatus = inspectionUpdate.message;
+      }
+    }
+    if (directQr && newStatus) {
+      const status = mqttDisplay.firmwareStatus || '';
+      const task = directQr.task;
+      if (/^(OBSTACLE DETECTED|DRIVE TIMEOUT|ROVER OFFLINE|EMERGENCY STOP)/.test(status)) {
+        stopDirectQr('QR steering interrupted by the ESP32.');
+      } else if (task?.action === 'inspect' && !task.inspectionId && task.statusRevision !== mqttDisplay.firmwareStatusRevision) {
+        if (status.startsWith('FARM MISSION STARTED')) task.started = true;
+        if (status === 'FARM MISSION COMPLETED' && task.started) task.completed = true;
+        if (/^(MISSION BUSY|MISSION CANCELLED|UNKNOWN COMMAND)/.test(status)) {
+          stopDirectQr('The ESP32 rejected or cancelled inspection.');
+        }
+      }
+    }
+    if (piMqttId === undefined) renderMqttTelemetry(mqttDisplay);
+    renderDirectControls();
+  });
+}
+function renderMqttTelemetry({id, connection, reading, presence, sampleAt, refreshPending}, viaPi = false) {
+    if (document.activeElement !== $('roverMqttId')) $('roverMqttId').value = id;
+    $('usePiMqttId').hidden = viaPi || !lastReportedRoverId || lastReportedRoverId === id;
+    const expanded = !viaPi && (reading?.expanded ?? id === 'device01');
+    for (const tile of document.querySelectorAll('[data-expanded-mqtt], [data-pi-mqtt]')) {
+      tile.hidden = tile.hasAttribute('data-expanded-mqtt') !== expanded;
+    }
+    const status = viaPi ? (reading ? 'Live via Pi and private MQTT' : 'Waiting for Pi MQTT readings') :
+      !id ? 'Set a Rover MQTT ID in Settings.' : connection !== 'connected' ? 'Connecting to MQTT' :
+      reading ? 'Live' : presence === 'offline' ? 'ESP32 offline' : 'Waiting for readings';
+    $('roverMqttStatus').textContent = [roverText(status), id].filter(Boolean).join(' · ');
+    $('roverMqttSample').textContent = sampleAt && reading
+      ? roverText('Last reading') + ' · ' + roverDate(sampleAt, {hour:'numeric', minute:'2-digit', second:'2-digit'}) : '';
+    setText('roverMqttRefresh', refreshPending ? 'Waiting for readings' : 'Refresh readings');
+    $('roverMqttRefresh').disabled = viaPi || !id || connection !== 'connected' || !!refreshPending;
+    $('mqttDrive').parentElement.hidden = viaPi;
+    const show = (value, unit) => Number.isFinite(value) ? roverNumber(value, Number.isInteger(value) ? 0 : 1) + ' ' + unit : '—';
+    setText('mqttPump', typeof reading?.pump === 'boolean' ? (reading.pump ? 'On' : 'Off') : '—');
+    setText('mqttSoil', show(reading?.soil, 'ADC'));
+    setText('mqttTemperature', show(reading?.temperature, 'ADC'));
+    setText('mqttWater', show(reading?.water, 'ADC'));
+    setText('mqttDistance', show(reading?.distance, 'cm'));
+    setText('mqttLight', show(reading?.light, 'lx'));
+    const npk = [reading?.n, reading?.p, reading?.k];
+    setText('mqttNpk', npk.every(Number.isFinite) ? npk.map(value => roverNumber(value)).join(' / ') + ' mg/kg' : '—');
+    setText('mqttDrive', typeof reading?.moving === 'boolean' ? (reading.moving ? 'Moving' : 'Stopped') : '—');
+    const phases = ['Idle', 'Lowering probe', 'Settling probe', 'Sampling water input', 'Waiting for pump', 'Retracting probe', 'Finishing'];
+    setText('mqttMission', phases[reading?.mission] || '—');
+    setText('mqttWaterAvg', show(reading?.waterAvg, 'ADC'));
+    setText('mqttReportedSpeed', show(reading?.speed, 'PWM'));
+    setText('mqttDispensing', typeof reading?.dispensing === 'boolean'
+      ? (reading.dispensing ? 'Active' : 'Idle') : '—');
+    setText('mqttServo', reading?.servoActive === true ? 'Active' : reading?.servoActive === false ? 'Idle' : '—');
+    const angles = [reading?.probeAngle, reading?.dispenserAngle];
+    setText('mqttAngles', angles.some(Number.isFinite)
+      ? angles.map(value => Number.isFinite(value) ? roverNumber(value) + '°' : '—').join(' / ') : '—');
 }
 
 function renderRoverSettings() {
@@ -667,14 +1149,28 @@ function renderRoverSettings() {
     ...Object.entries(f.thresholds).map(([name, spec]) => [name === 'moisture' ? 'Moisture minimum' : name.toUpperCase() + ' minimum', spec.threshold + ' ' + spec.unit]),
     ['Probe settling / maximum sample age', f.settle_s + ' / ' + f.sample_max_age_s + ' s'],
   ]);
-  group('Treatment and tank', [
+  group('Treatment and Enviro Advanced', [
     ['Fertilizer / water runtime', f.fertilizer_s + ' / ' + f.irrigation_s + ' s'],
     ['Hardware / irrigation timeout', f.io_timeout_s + ' / ' + f.irrigation_timeout_s + ' s'],
-    ['Tank status interval', f.tank_poll_s + ' s'],
+    ['Irrigation status interval', f.tank_poll_s + ' s'],
   ]);
 }
 
-$('autoStart').onclick=()=>{if(!steerReason()&&!autoArmed&&!driveDirection){autoArmed=true;driveDirection='automatic';autoRun++;autoStatus='Starting QR scanner';startSteeringCamera();drivePulse();}};
+$('autoStart').onclick = () => {
+  if (directMode()) {
+    if (autoSelected && !$('autoStart').disabled) sendDirect('mission');
+    return;
+  }
+  if (!steerReason() && !autoArmed && !driveDirection) {
+    autoArmed = true;
+    driveDirection = 'automatic';
+    autoRun++;
+    autoStatus = 'Starting QR scanner';
+    startSteeringCamera();
+    drivePulse();
+  }
+};
+$('autoCancelMqtt').onclick = () => { if (directMode()) sendDirect('cancel'); };
 function updateSteering() {
   const operation = operationState();
   const locked = Boolean(operation.active_task || operation.fault);
@@ -684,6 +1180,10 @@ function updateSteering() {
     return;
   }
   updateTaskPanel();
+  if (directMode()) {
+    $('driveSpeed').disabled = Boolean(directQr || mqttDisplay?.directBusy);
+    return;
+  }
   $('autoStart').disabled=!!steerReason() || autoArmed || locked;
   const showAutomatic = autoSelected || (locked && ['Automatic','Manual requested'].includes(operation.mode));
   $('autoMode').setAttribute('aria-pressed', String(showAutomatic));
@@ -748,16 +1248,17 @@ async function drivePulse() {
   finally {drivePending=false;}
 }
 for (const b of document.querySelectorAll('[data-drive]')) {
-  const press=()=>{if (!driveDirection && !operationState().active_task && !operationState().fault && !steerReason()) {driveDirection=b.dataset.drive; drivePulse();}};
+  const press=()=>{if (directMode()) { beginDirect(b); return; } if (!driveDirection && !operationState().active_task && !operationState().fault && !steerReason()) {driveDirection=b.dataset.drive; drivePulse();}};
   b.onpointerdown=e=>{if(e.button!==0)return; b.setPointerCapture(e.pointerId); press();};
-  b.onpointerup=b.onpointercancel=b.onlostpointercapture=releaseDrive;
+  const release = () => { releaseDirect(); releaseDrive(); };
+  b.onpointerup=b.onpointercancel=b.onlostpointercapture=release;
   b.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();if(!e.repeat)press();}};
-  b.onkeyup=e=>{if(['Enter',' '].includes(e.key))releaseDrive();};
-  b.onblur=releaseDrive;
+  b.onkeyup=e=>{if(['Enter',' '].includes(e.key))release();};
+  b.onblur=release;
 }
 window.addEventListener('blur',()=>{if(!autoArmed)releaseDrive();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(autoArmed)pauseAutomatic();else releaseDrive();}});
-setInterval(()=>{updateSteering();drivePulse();},100);
+setInterval(()=>{tickDirectQr();updateSteering();drivePulse();},100);
 function toggleScene(on){
   sceneRunning=on; clearScene(); $('startScene').disabled=on;$('stopScene').disabled=!on;
   $('sceneStatus').textContent=on?'Waiting for an observation':'Map camera stopped';
@@ -776,6 +1277,25 @@ window.addEventListener('message', event => {
   hostActive = event.data.active === true;
   if (!hostActive) { if(autoArmed)pauseAutomatic();else releaseDrive(); cameraOff(); clearScene(); }
   else { resize(); poll(); cameraTick(); mapVideo(); syncArchive(); }
+});
+window.addEventListener('message', event => {
+  if (embedded && event.source === window.parent && event.origin === location.origin &&
+      event.data?.type === 'enviroos:show-dispensing') {
+    $('dispensingTitle').focus({preventScroll:true});
+    $('dispensingTitle').scrollIntoView({block:'nearest'});
+  }
+  if (receiveRoverLocale(event)) {
+    syncDriveSpeed();
+    update();
+    if (mqttDisplay && piMqttId === undefined) renderMqttTelemetry(mqttDisplay);
+    if ($('qrDialog').open) $('qrFrame').contentWindow?.postMessage({
+      type:'enviroos:rover-locale', ...roverLocale()
+    }, location.origin);
+  }
+  if (event.origin !== location.origin || event.source !== $('qrFrame').contentWindow) return;
+  if (event.data?.type === 'enviroos:qr-locale-ready') {
+    $('qrFrame').contentWindow.postMessage({type:'enviroos:rover-locale', ...roverLocale()}, location.origin);
+  }
 });
 window.addEventListener('pagehide', () => {hostActive = false; releaseDrive(); cameraOff(); clearScene();});
 if (embedded) window.parent.postMessage({type:'enviroos:rover-ready'}, location.origin);
@@ -817,6 +1337,7 @@ if(embedded){
 // A single compact driving console replaces the long planning dashboard.
 if(embedded){
  document.documentElement.classList.add('simple-rover');
+ $('roverTaskPanel').after($('roverMqttPanel'));
  const toolbar=document.querySelector('header .top-meta');
  toolbar?.append($('qrCards'));
  const historyDialog=document.createElement('dialog');historyDialog.id='compactHistoryDialog';
@@ -828,7 +1349,7 @@ if(embedded){
 }
 
 const roverSettings = viewNode('button', '', 'button rover-settings-button');
-roverSettings.innerHTML = '<svg class="icon" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4m-5 1v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Settings</span>';
+roverSettings.innerHTML = '<svg class="icon" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4m-5 1v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span data-rover-text="Settings">Settings</span>';
 roverSettings.querySelector('svg').setAttribute('viewBox', '0 0 24 24');
 roverSettings.setAttribute('aria-label', 'Rover settings');
 roverSettings.title = 'Rover settings';
@@ -836,6 +1357,7 @@ roverSettings.type = 'button';
 roverSettings.id = 'openRoverSettings';
 roverSettings.onclick = () => {
   renderRoverSettings();
+  renderServoMaintenance(operationState());
   $('roverSettingsDialog').showModal();
 };
 document.querySelector('header .top-meta').append(roverSettings);

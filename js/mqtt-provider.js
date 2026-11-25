@@ -115,7 +115,7 @@ window.EnviroOS = window.EnviroOS || {};
         }
         self._emit({ type: 'conn', state: s });
       },
-      onMessage: (topic, payload) => self._route(topic, payload)
+      onMessage: (topic, payload, meta) => self._route(topic, payload, meta)
     });
     self.client = client;
     client.open();
@@ -155,12 +155,11 @@ window.EnviroOS = window.EnviroOS || {};
     this.client.unsubscribe(b + '/status');
   };
 
-  MqttProvider.prototype._route = function (topic, payload) {
+  MqttProvider.prototype._route = function (topic, payload, meta = {}) {
     const parts = String(topic).split('/');
-    if (parts.length < 3 || parts[0] !== 'esp32bot') return;
+    if (parts.length !== 3 || parts[0] !== 'esp32bot' || !/^[0-9a-f]{12}$/i.test(parts[1])) return;
     // Normalize: topics may use lowercase hex while deviceId is uppercase.
-    const rawId = String(parts[1] || '');
-    const id = rawId.toUpperCase().replace(/[^0-9A-F]/g, '') || rawId;
+    const id = parts[1].toUpperCase();
     const leaf = parts[2];
     let data = null;
     try { data = JSON.parse(payload); }
@@ -171,6 +170,7 @@ window.EnviroOS = window.EnviroOS || {};
     }
     if (leaf === 'status') this._onStatus(id, data);
     else if (leaf === 'sensors') {
+      if (meta.retained || !data || (data.device && String(data.device).toUpperCase() !== id)) return;
       if (id !== this.deviceId) { this._noteSensorsDiscovery(id, data); return; }
       this._onSensors(data);
     }
@@ -439,7 +439,7 @@ window.EnviroOS = window.EnviroOS || {};
 
   MqttProvider.prototype.selectDevice = function (id) {
     id = String(id || '').toUpperCase().replace(/[^0-9A-F]/g, '');
-    if (!id || id === this.deviceId) return;
+    if (!id || id === this.deviceId || this.opts.deviceId) return;
     this._unsubscribeDevice(this.deviceId);
     this.deviceId = id;
     this.persistDev();
@@ -494,8 +494,8 @@ window.EnviroOS = window.EnviroOS || {};
 
   MqttProvider.prototype.getHistory = function () { return this.daily; };
 
-  MqttProvider.prototype.dispose = function () {
-    this.sendMotor('stop');
+  MqttProvider.prototype.dispose = function (stopMotor = true) {
+    if (stopMotor) this.sendMotor('stop');
     try { this.client && this.client.close(); } catch (_) { /* ignore */ }
     this.client = null;
     this.listeners = [];

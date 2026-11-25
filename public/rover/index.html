@@ -1,77 +1,696 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#112b23"><meta name="description" content="Enviro Rover mission control. Draw routes, schedule stops and see the world through your Raspberry Pi USB webcam."><title>Enviro Rover — Mission Control</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23112b23'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='sans-serif' font-size='32' fill='%23c3ed91'%3Eer%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enviroos-theme.css"></head>
-<body><svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-route" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h7a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8h7"/></symbol><symbol id="i-camera" viewBox="0 0 24 24"><path d="M8 6l2-3h4l2 3h5v14H3V6z"/><circle cx="12" cy="13" r="4"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M4 3h13l3 3v15H4z"/><path d="M8 3v6h8V3M8 21v-8h8v8"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 2-2.5 2-2.5 4M12 17h.01"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 17v4h16v-4"/></symbol><symbol id="i-draw" viewBox="0 0 24 24"><path d="m4 17-1 4 4-1L20 7l-3-3zM14 7l3 3M9 20h12"/></symbol><symbol id="i-pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0z"/><circle cx="12" cy="10" r="2"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-block" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m6 18 12-12M6 12l6-6M12 18l6-6"/></symbol><symbol id="i-pan" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14"/></symbol><symbol id="i-clear" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 13 8-13 8z"/></symbol><symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol><symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol><symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 3C7 2 2 8 5 15s15 5 15-12zM4 21 15 9"/></symbol><symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0M12 20h.01"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z"/><path d="m8 12 3 3 5-6"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol></svg>
-<aside class="rail" aria-label="Main navigation"><a class="brand" href="#" aria-label="Enviro Rover home"><span class="brand-symbol"><svg class="icon" aria-hidden="true"><use href="#i-leaf"/></svg></span><span class="brand-name">enviro<span>rover<span class="brand-period">.</span></span></span></a><div class="nav-label">YOUR WORKSPACE</div><nav><button class="rail-active" id="plannerNav" aria-label="Mission planner"><svg class="icon" aria-hidden="true"><use href="#i-route"/></svg><span>Mission planner</span><i></i></button><button id="railCamera" aria-label="Show rover camera"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg><span>Rover camera</span></button><button id="railSaved" aria-label="Load saved mission"><svg class="icon" aria-hidden="true"><use href="#i-save"/></svg><span>Saved mission</span></button><a href="setup.html" target="_blank" rel="noopener" aria-label="Setup guide"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg><span>Setup & guide</span><small>↗</small></a></nav><div class="sidebar-card"><div class="sidebar-card-icon"><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg></div><strong id="sidebarTitle">Your rover, connected.</strong><p id="sidebarMessage">Connect your Raspberry Pi to bring maps and camera online.</p><button id="sidebarConnect">Connect your Pi <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div><div class="rail-bottom"><div class="rover-avatar">ER</div><div class="rover-identity"><strong>Enviro Rover</strong><small><span class="rail-dot"></span><span id="sidebarStatus">Not connected</span></small></div><button id="settings" aria-label="Connection settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button></div></aside>
-<div class="workspace"><header><div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Mission control</strong></div><div class="top-meta"><span class="chip"><i></i>ESP32 + RASPBERRY PI 5</span><button id="quickHelp" class="icon-button" aria-label="Open quick start guide" title="Quick start"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></button><button id="connection" class="connection"><i></i><span>Connect rover</span><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg></button></div></header>
-<div class="mobile-nav"><a href="#routeWorkspace"><svg class="icon" aria-hidden="true"><use href="#i-route"/></svg> Route</a><a href="#itinerary"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg> Stops</a><a href="#visionPanel"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg> Camera</a></div>
-<main><section class="heading"><div><div class="eyebrow"><span class="heading-dot"></span> ENVIRO ROVER / MISSION PLANNER</div><h1>Your rover. <em>Ready to work.</em></h1><p>Drive, scan QR cards, and plan your field routes.</p></div><div class="heading-actions"><button class="button" id="load"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Import route</button><button class="button save-button" id="save"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> Save mission</button></div></section>
-<div id="notice" class="notice"><span class="notice-icon"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></span><span><b>You’re in the planning sandbox.</b> Explore the example map, or connect your Pi to work with your real rover.</span><button id="connectInline">Connect Pi <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
-<div class="planning-flow" aria-label="Mission planning steps"><button data-step="draw" class="current"><span>01</span><div><b>Draw your route</b><small>Start from the rover</small></div><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button data-step="stop"><span>02</span><div><b>Add your stops</b><small>Choose where to pause</small></div><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button data-step="check"><span>03</span><div><b>Check the path</b><small>Confirm mapped space</small></div><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button data-step="start"><span>04</span><div><b>Let’s get moving</b><small>Connect & start mission</small></div><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></button></div>
-<section class="panel rover-operation" id="roverTaskPanel" aria-label="Rover operation" data-tone="idle">
-  <div class="rover-operation-main">
-    <div class="rover-operation-copy">
-      <span id="roverMode" class="rover-mode">Disconnected</span>
-      <h2 id="taskTitle">Rover offline</h2>
-      <p id="taskSummary" role="status">Connect the Pi to view live controls and task status.</p>
-      <p id="taskMeta" hidden></p>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#112b23">
+  <meta name="description"
+    content="Enviro Rover mission control. Draw routes, schedule stops and see the world through your Raspberry Pi USB webcam.">
+  <title>Enviro Rover — Mission Control</title>
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23112b23'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='sans-serif' font-size='32' fill='%23c3ed91'%3Eer%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="enviroos-theme.css">
+</head>
+
+<body><svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-route" viewBox="0 0 24 24">
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="19" cy="18" r="2" />
+      <path d="M7 6h7a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8h7" />
+    </symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24">
+      <path d="M8 6l2-3h4l2 3h5v14H3V6z" />
+      <circle cx="12" cy="13" r="4" />
+    </symbol>
+    <symbol id="i-save" viewBox="0 0 24 24">
+      <path d="M4 3h13l3 3v15H4z" />
+      <path d="M8 3v6h8V3M8 21v-8h8v8" />
+    </symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24">
+      <path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z" />
+      <circle cx="12" cy="12" r="3" />
+    </symbol>
+    <symbol id="i-help" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 2-2.5 2-2.5 4M12 17h.01" />
+    </symbol>
+    <symbol id="i-link" viewBox="0 0 24 24">
+      <path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2" />
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24">
+      <path d="M5 12h14m-6-6 6 6-6 6" />
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24">
+      <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+    </symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24">
+      <path d="M12 16V4m-5 5 5-5 5 5M4 17v4h16v-4" />
+    </symbol>
+    <symbol id="i-draw" viewBox="0 0 24 24">
+      <path d="m4 17-1 4 4-1L20 7l-3-3zM14 7l3 3M9 20h12" />
+    </symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24">
+      <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0z" />
+      <circle cx="12" cy="10" r="2" />
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 6v6l4 2" />
+    </symbol>
+    <symbol id="i-block" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="m6 18 12-12M6 12l6-6M12 18l6-6" />
+    </symbol>
+    <symbol id="i-pan" viewBox="0 0 24 24">
+      <path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3" />
+    </symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24">
+      <path d="M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14" />
+    </symbol>
+    <symbol id="i-clear" viewBox="0 0 24 24">
+      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="m5 12 4 4L19 6" />
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24">
+      <path d="m8 4 13 8-13 8z" />
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24">
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+    </symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24">
+      <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" />
+    </symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24">
+      <path d="M5 12h14" />
+    </symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24">
+      <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+      <circle cx="12" cy="12" r="3" />
+    </symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24">
+      <path d="M20 3C7 2 2 8 5 15s15 5 15-12zM4 21 15 9" />
+    </symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24">
+      <path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0M12 20h.01" />
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M6 18 18 6" />
+    </symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24">
+      <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z" />
+      <path d="m8 12 3 3 5-6" />
+    </symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </symbol>
+  </svg>
+  <aside class="rail" aria-label="Main navigation"><a class="brand" href="#" aria-label="Enviro Rover home"><span
+        class="brand-symbol"><svg class="icon" aria-hidden="true">
+          <use href="#i-leaf" />
+        </svg></span><span class="brand-name">enviro<span>rover<span class="brand-period">.</span></span></span></a>
+    <div class="nav-label">YOUR WORKSPACE</div>
+    <nav><button class="rail-active" id="plannerNav" aria-label="Mission planner"><svg class="icon" aria-hidden="true">
+          <use href="#i-route" />
+        </svg><span>Mission planner</span><i></i></button><button id="railCamera" aria-label="Show rover camera"><svg
+          class="icon" aria-hidden="true">
+          <use href="#i-camera" />
+        </svg><span data-rover-text="Rover camera">Rover camera</span></button><button id="railSaved"
+        aria-label="Load saved mission"><svg class="icon" aria-hidden="true">
+          <use href="#i-save" />
+        </svg><span>Saved mission</span></button><a href="setup.html" target="_blank" rel="noopener"
+        aria-label="Setup guide"><svg class="icon" aria-hidden="true">
+          <use href="#i-help" />
+        </svg><span>Setup & guide</span><small>↗</small></a></nav>
+    <div class="sidebar-card">
+      <div class="sidebar-card-icon"><svg class="icon" aria-hidden="true">
+          <use href="#i-wifi" />
+        </svg></div><strong id="sidebarTitle">Your rover, connected.</strong>
+      <p id="sidebarMessage">Connect your Raspberry Pi to bring maps and camera online.</p><button
+        id="sidebarConnect">Connect your Pi <svg class="icon" aria-hidden="true">
+          <use href="#i-arrow" />
+        </svg></button>
     </div>
-    <div class="rover-operation-actions">
-      <button id="cancelManualRequest" type="button" hidden>Cancel manual request</button>
-      <button id="recoverFarmland" type="button" hidden>Check recovery</button>
-      <button id="taskEmergencyStop" class="stop-button" type="button" disabled>Emergency stop</button>
+    <div class="rail-bottom">
+      <div class="rover-avatar">ER</div>
+      <div class="rover-identity"><strong>Enviro Rover</strong><small><span class="rail-dot"></span><span
+            id="sidebarStatus">Not connected</span></small></div><button id="settings"
+        aria-label="Connection settings"><svg class="icon" aria-hidden="true">
+          <use href="#i-settings" />
+        </svg></button>
     </div>
+  </aside>
+  <div class="workspace">
+    <header>
+      <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Mission control</strong></div>
+      <div class="top-meta"><span class="chip"><i></i>ESP32 + RASPBERRY PI 5</span><button id="quickHelp"
+          class="icon-button" aria-label="Open quick start guide" title="Quick start"><svg class="icon"
+            aria-hidden="true">
+            <use href="#i-help" />
+          </svg></button><button id="connection" class="connection"><i></i><span data-rover-text="Connect rover">Connect
+            rover</span><svg class="icon" aria-hidden="true">
+            <use href="#i-link" />
+          </svg></button></div>
+    </header>
+    <div class="mobile-nav"><a href="#routeWorkspace"><svg class="icon" aria-hidden="true">
+          <use href="#i-route" />
+        </svg> Route</a><a href="#itinerary"><svg class="icon" aria-hidden="true">
+          <use href="#i-clock" />
+        </svg> Stops</a><a href="#visionPanel"><svg class="icon" aria-hidden="true">
+          <use href="#i-camera" />
+        </svg> Camera</a></div>
+    <main>
+      <section class="heading">
+        <div>
+          <div class="eyebrow"><span class="heading-dot"></span> ENVIRO ROVER / MISSION PLANNER</div>
+          <h1>Your rover. <em>Ready to work.</em></h1>
+          <p>Drive, scan QR cards, and plan your field routes.</p>
+        </div>
+        <div class="heading-actions"><button class="button" id="load"><svg class="icon" aria-hidden="true">
+              <use href="#i-upload" />
+            </svg> Import route</button><button class="button save-button" id="save"><svg class="icon"
+              aria-hidden="true">
+              <use href="#i-download" />
+            </svg> Save mission</button></div>
+      </section>
+      <div id="notice" class="notice"><span class="notice-icon"><svg class="icon" aria-hidden="true">
+            <use href="#i-grid" />
+          </svg></span><span><b>You’re in the planning sandbox.</b> Explore the example map, or connect your Pi to work
+          with your real rover.</span><button id="connectInline">Connect Pi <svg class="icon" aria-hidden="true">
+            <use href="#i-arrow" />
+          </svg></button></div>
+      <div class="planning-flow" aria-label="Mission planning steps"><button data-step="draw"
+          class="current"><span>01</span>
+          <div><b>Draw your route</b><small>Start from the rover</small></div><svg class="icon" aria-hidden="true">
+            <use href="#i-arrow" />
+          </svg>
+        </button><button data-step="stop"><span>02</span>
+          <div><b>Add your stops</b><small>Choose where to pause</small></div><svg class="icon" aria-hidden="true">
+            <use href="#i-arrow" />
+          </svg>
+        </button><button data-step="check"><span>03</span>
+          <div><b>Check the path</b><small>Confirm mapped space</small></div><svg class="icon" aria-hidden="true">
+            <use href="#i-arrow" />
+          </svg>
+        </button><button data-step="start"><span>04</span>
+          <div><b>Let’s get moving</b><small>Connect & start mission</small></div><svg class="icon" aria-hidden="true">
+            <use href="#i-check" />
+          </svg>
+        </button></div>
+      <section class="panel rover-operation" id="roverTaskPanel" aria-label="Rover operation" data-tone="idle">
+        <div class="rover-operation-main">
+          <div class="rover-operation-copy">
+            <span id="roverMode" class="rover-mode" data-rover-text="Disconnected">Disconnected</span>
+            <h2 id="taskTitle" data-rover-text="Pi controls disconnected">Pi controls disconnected</h2>
+            <p id="taskSummary" role="status">Connect the Pi to view live controls and task status.</p>
+            <p id="taskMeta" hidden></p>
+          </div>
+          <div class="rover-operation-actions">
+            <button id="cancelManualRequest" type="button" hidden>Cancel manual request</button>
+            <button id="recoverFarmland" type="button" hidden>Check recovery</button>
+            <button id="taskEmergencyStop" class="stop-button" type="button" disabled
+              data-rover-text="Emergency stop">Emergency stop</button>
+          </div>
+        </div>
+        <div id="taskProgress" class="rover-progress" hidden>
+          <progress id="taskProgressMeter" max="1" aria-label="Current movement phase progress"></progress>
+          <span id="taskProgressLabel"></span>
+        </div>
+      </section>
+      <div class="dashboard">
+        <section class="panel map-panel" id="routeWorkspace">
+          <div class="panel-heading">
+            <div>
+              <div class="eyebrow">YOUR NAVIGATION CANVAS</div>
+              <h2 id="mapTitle">Workshop exploration</h2>
+            </div><span class="small-badge" id="mapBadge"><i></i>EXAMPLE MAP</span>
+          </div>
+          <div class="map-switch"><button id="sceneTab" aria-pressed="false">Camera obstacle grid</button><button
+              id="routeTab" aria-pressed="true" data-rover-text="Route map">Route map</button><button id="qrCards"
+              class="qr-link" data-rover-text="QR codes">QR codes</button><button id="historyTab" aria-pressed="false"
+              data-rover-text="History">History</button></div>
+          <section id="historyPanel" hidden>
+            <h3>Trip history</h3>
+            <div id="historyRows"></div>
+          </section>
+          <div id="scenePanel" hidden>
+            <div class="map-switch"><button id="startScene">Start map camera</button><button id="stopScene">Stop map
+                camera</button><span id="sceneRate"></span> <span style="display:inline-grid"><strong id="sceneQR"
+                  role="status"></strong><small id="sceneGPS">GNSS · waiting for Pi</small></span></div>
+            <div class="live-grid"><img id="mapLive" alt="Live camera grid" hidden></div>
+            <section class="journey">
+              <h3>Route and obstacles</h3>
+              <div id="journey"></div><button id="sunset">Use local sunset</button>
+              <div id="sceneStatus" role="status"></div>
+            </section>
+          </div>
+          <div id="tripSummary" aria-live="polite"></div>
+          <div class="map-toolbar">
+            <div class="segmented" role="group" aria-label="Map tools"><button data-tool="draw" class="active"
+                aria-pressed="true" title="Draw a route (D)"><svg class="icon" aria-hidden="true">
+                  <use href="#i-draw" />
+                </svg> <span>Draw route</span></button><button data-tool="waypoint" aria-pressed="false"
+                title="Add a waypoint (W)"><svg class="icon" aria-hidden="true">
+                  <use href="#i-pin" />
+                </svg> <span>Waypoint</span></button><button data-tool="stop" aria-pressed="false"
+                title="Add a timed stop (S)"><svg class="icon" aria-hidden="true">
+                  <use href="#i-clock" />
+                </svg> <span>Add stop</span></button><button data-tool="block" aria-pressed="false"
+                title="Draw a no-go area (B)"><svg class="icon" aria-hidden="true">
+                  <use href="#i-block" />
+                </svg> <span>No-go area</span></button><button data-tool="pan" aria-label="Pan map" aria-pressed="false"
+                title="Pan map (H), or hold Shift"><svg class="icon" aria-hidden="true">
+                  <use href="#i-pan" />
+                </svg></button></div>
+            <div class="history-tools"><button id="undo" class="icon-button" title="Undo last edit (Ctrl/Cmd+Z)"
+                aria-label="Undo route edit"><svg class="icon" aria-hidden="true">
+                  <use href="#i-undo" />
+                </svg></button><button id="clear" class="icon-button" title="Clear route and areas"
+                aria-label="Clear route"><svg class="icon" aria-hidden="true">
+                  <use href="#i-clear" />
+                </svg></button></div>
+          </div>
+          <div class="map-wrap"><canvas id="map" aria-label="Interactive route map: draw or click to add destinations"
+              tabindex="0"></canvas>
+            <div class="map-topline"><span class="map-location"><svg class="icon" aria-hidden="true">
+                  <use href="#i-pin" />
+                </svg> <span id="mapMode">Planning sandbox</span></span><span class="north">N <span>↑</span></span>
+            </div>
+            <div class="map-coordinate" id="coordinate">MAP FRAME · METRES</div>
+            <div class="map-tools"><button id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="icon"
+                  aria-hidden="true">
+                  <use href="#i-plus" />
+                </svg></button><button id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="icon"
+                  aria-hidden="true">
+                  <use href="#i-minus" />
+                </svg></button><button id="fit" aria-label="Fit map" title="Fit the whole map"><svg class="icon"
+                  aria-hidden="true">
+                  <use href="#i-fit" />
+                </svg></button></div>
+            <div class="scale"><span></span><small id="scaleText">2 m</small></div>
+            <div id="mapEmpty" class="map-empty" hidden><span class="empty-map-icon"><svg class="icon"
+                  aria-hidden="true">
+                  <use href="#i-grid" />
+                </svg></span>Waiting for your real costmap<small>Your Pi is connected. Map data will appear here when
+                Nav2 is ready.</small></div>
+          </div>
+          <div class="tool-guidance"><svg class="icon" aria-hidden="true">
+              <use href="#i-draw" />
+            </svg><span id="toolHint">Click and drag from the rover to sketch your
+              route.</span><kbd>SHIFT</kbd><small>to pan</small></div>
+          <div class="map-footer">
+            <div class="legend"><span><i class="free"></i>Mapped free</span><span><i class="blocked"></i>Blocked /
+                cost</span><span><i class="unknown"></i>Unknown</span><span><i class="route"></i>Planned route</span>
+            </div><small id="mapAge">EXAMPLE DATA · NO ROBOT CONNECTED</small>
+          </div>
+        </section>
+        <aside class="right-column">
+          <section class="panel mission">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">YOUR MISSION AT A GLANCE</div>
+                <h2 data-rover-text="Mission overview">Mission overview</h2>
+              </div><span class="status-pill" id="missionState">Draft</span>
+            </div>
+            <div class="metrics">
+              <div><strong id="distance">0.0<span> m</span></strong><small>Route length</small></div>
+              <div><strong id="stopCount">0</strong><small>Timed stops</small></div>
+              <div><strong id="dwell">0<span> s</span></strong><small>Total wait</small></div>
+            </div>
+            <div class="readiness">
+              <div><span id="feedbackDot" class="state-dot"></span><span id="feedbackText">Connect your Pi to check
+                  readiness</span></div>
+              <div><span id="routeDot" class="state-dot"></span><span id="routeText">Draw a route to check the
+                  path</span></div>
+            </div><button id="arm" class="button arm-button" hidden><svg class="icon" aria-hidden="true">
+                <use href="#i-link" />
+              </svg> Enable motor bridge</button>
+            <div class="mission-buttons"><button id="validate" class="button"><svg class="icon" aria-hidden="true">
+                  <use href="#i-check" />
+                </svg> Check route</button><button id="preview" class="button"><svg class="icon" aria-hidden="true">
+                  <use href="#i-play" />
+                </svg> Preview</button></div><button id="start" class="start" disabled><span
+                data-rover-text="Start mission">Start mission</span><svg class="icon" aria-hidden="true">
+                <use href="#i-arrow" />
+              </svg></button><button id="stop" class="stop-button" disabled><svg class="icon" aria-hidden="true">
+                <use href="#i-stop" />
+              </svg> <span data-rover-text="Stop rover">Stop rover</span> <kbd>ESC</kbd></button>
+            <p class="mission-hint" id="missionHint">Connect your Pi to send this mission to the rover.</p>
+          </section>
+          <section class="panel vision" id="visionPanel">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">SEE WHAT YOUR ROVER SEES</div>
+                <h2><span data-rover-text="Rover camera">Rover camera</span> <span class="camera-status-tag"
+                    id="cameraTag" data-rover-text="Off">Off</span></h2>
+              </div>
+              <div class="camera-actions"><button id="expandCamera" class="icon-button" title="Expand camera view"
+                  aria-label="Expand camera view"><svg class="icon" aria-hidden="true">
+                    <use href="#i-expand" />
+                  </svg></button><label class="toggle"><input id="cameraToggle" type="checkbox"
+                    aria-label="Show USB webcam"><span></span></label></div>
+            </div>
+            <div class="camera-view"><img id="camera" alt="Live view from Raspberry Pi USB webcam" hidden>
+              <div id="cameraPlaceholder">
+                <div class="camera-reticle"><i></i><svg class="icon" aria-hidden="true">
+                    <use href="#i-camera" />
+                  </svg><i></i></div><b data-rover-text="Rover webcam">Rover webcam</b><span>View the rover’s live
+                  feed.</span><button id="cameraOpen"><span data-rover-text="Show camera">Show camera</span> <svg
+                    class="icon" aria-hidden="true">
+                    <use href="#i-arrow" />
+                  </svg></button>
+              </div>
+              <div class="camera-label" aria-label="Camera information">
+                <span class="camera-pill" id="cameraFeedStatus" data-state="off"><span class="camera-dot"
+                    aria-hidden="true"></span><strong id="cameraState">Camera off</strong></span>
+                <span class="camera-pill" id="cameraQRStatus" hidden><span class="camera-pill-key"
+                    aria-hidden="true">QR</span><span id="cameraQR" role="status"></span></span>
+                <span class="camera-pill" id="cameraGPSStatus" role="group" aria-label="GPS: No fix" hidden><span
+                    class="camera-pill-key" aria-hidden="true">GPS</span><span id="cameraGPS">No fix</span></span>
+              </div>
+              <div class="camera-crosshair"></div>
+            </div>
+            <div class="steering">
+              <div class="map-switch"><button id="manualMode" aria-pressed="true"
+                  data-rover-text="Manual steering">Manual steering</button><button id="autoMode" aria-pressed="false"
+                  data-rover-text="Automatic">Automatic</button></div>
+              <div id="autoControls" hidden>
+                <p id="autoDescription">Scans for the nearest eligible QR card.</p><button id="autoStart"
+                  data-rover-text="Start">Start</button> <button type="button" id="autoCancelMqtt" hidden>Cancel
+                  mission</button><button type="button" id="directQrStart" hidden>Start QR steering</button><button
+                  type="button" id="directQrStop" hidden>Stop QR steering</button>
+              </div>
+              <div class="rover-speed-control"><label for="driveSpeed"><span data-rover-text="Drive speed">Drive
+                    speed</span> · <output id="driveSpeedValue">128 / 255 PWM</output></label><input id="driveSpeed"
+                  type="range" min="0" max="255" step="1" value="128">
+                <p id="driveSpeedFormula">Motor A: 93 · Motor B: 128 PWM</p><small>Automatic tasks hold the selected
+                  speed until they finish.</small>
+              </div>
+              <p id="steerStatus" role="status">Connect the Pi to steer.</p>
+              <div class="drive-pad" aria-label="Hold to steer"><button data-drive="left" disabled>↑ <span
+                    data-rover-text="Left">Left</span></button><button data-drive="forward" disabled>← <span
+                    data-rover-text="Forward">Forward</span></button><button data-drive="back" disabled><span
+                    data-rover-text="Backward">Backward</span> →</button><button data-drive="right" disabled>↓ <span
+                    data-rover-text="Right">Right</span></button></div>
+            </div>
+            <div class="vision-note"><svg class="icon" aria-hidden="true">
+                <use href="#i-shield" />
+              </svg>
+              <p><b>Look with the camera. Navigate with the map.</b> Free and blocked areas come from Nav2’s real
+                costmap; the camera view alone doesn’t verify a drivable path.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <section class="panel rover-dispensing" aria-labelledby="dispensingTitle">
+        <h2 tabindex="-1" id="dispensingTitle" data-rover-text="Dispensing">Dispensing</h2>
+        <div class="dispensing-grid">
+          <section class="dispensing-card" aria-labelledby="fertilizerTitle">
+            <h3 id="fertilizerTitle" data-rover-text="Rover fertilizer pump">Rover fertilizer pump</h3>
+            <p id="fertilizerStatus" role="status" data-rover-text="Connect the Pi">Connect the Pi</p>
+            <p id="fertilizerDetail" class="dispensing-detail"></p>
+            <button type="button" id="fertilizerPumpStart" class="button pump-action" disabled
+              data-rover-text="Start fertilizer pump">Start fertilizer pump</button>
+          </section>
+          <section class="dispensing-card" aria-labelledby="waterTitle">
+            <h3 id="waterTitle" data-rover-text="Irrigation via Enviro Advanced">Irrigation via Enviro Advanced</h3>
+            <p id="waterStatus" role="status" data-rover-text="Connect the Pi">Connect the Pi</p>
+            <p id="waterDetail" class="dispensing-detail"></p>
+            <button type="button" id="waterPumpStart" class="button pump-action" disabled
+              data-rover-text="Start water pump">Start water pump</button>
+          </section>
+        </div>
+        <details id="roverDirect" class="rover-firmware-tools" hidden>
+          <summary>ESP32 tools</summary>
+          <div class="rover-network-actions" aria-label="ESP32 tools">
+            <button type="button" class="button" data-mqtt-action="pump" disabled>Start rover pump</button>
+            <button type="button" class="button" data-mqtt-action="pump-off" disabled>Stop rover pump</button>
+            <button type="button" class="button" data-mqtt-action="probe-up" disabled>Raise probe arm</button>
+            <button type="button" class="button" data-mqtt-action="probe-mid" disabled>Center probe arm</button>
+            <button type="button" class="button" data-mqtt-action="probe-down" disabled>Lower probe arm</button>
+            <button type="button" class="button" data-mqtt-action="servo-test" disabled>Test servos</button>
+            <button type="button" class="button" data-mqtt-action="water-test" disabled>Sample water input</button>
+            <button type="button" class="button" data-mqtt-action="distance" disabled>Measure distance</button>
+          </div>
+          <p id="roverDirectReply" role="status"></p>
+        </details>
+        <button type="button" id="dispensingStop" class="stop-button" hidden data-rover-text="Stop dispensing">Stop
+          dispensing</button>
+      </section>
+      <section class="panel rover-inspection" aria-labelledby="inspectionTitle">
+        <h2 id="inspectionTitle" data-rover-text="Inspection">Inspection</h2>
+        <form id="inspectionForm">
+          <p class="inspection-note" data-rover-text="Steps run in order. Enter times in seconds.">Steps run in order. Enter times in seconds.</p>
+          <ol id="inspectionSteps" class="inspection-steps"></ol>
+          <p class="inspection-note" data-rover-text="Water sampling runs in 3-second batches. Irrigation is controlled separately by Enviro Advanced.">Water sampling runs in 3-second batches. Irrigation is controlled separately by Enviro Advanced.</p>
+          <div class="inspection-footer">
+            <button type="button" class="button" id="inspectionAdd" data-rover-text="Add step">Add step</button>
+            <label><input type="checkbox" id="inspectionUseQr"> <span data-rover-text="Use this routine for Inspect QR commands">Use this routine for Inspect QR commands</span></label>
+            <button type="submit" class="button" data-rover-text="Save routine">Save routine</button>
+            <button type="button" class="button primary" id="inspectionRun" disabled data-rover-text="Run inspection">Run inspection</button>
+            <button type="button" class="button stop-button" id="inspectionStop" hidden data-rover-text="Stop inspection">Stop inspection</button>
+          </div>
+        </form>
+        <p id="inspectionStatus" role="status"></p>
+      </section>
+      <details class="panel rover-telemetry" id="roverMqttPanel" hidden>
+        <summary><span data-rover-text="ESP32 network readings">ESP32 network readings</span> <small
+            id="roverMqttStatus" role="status" data-rover-text="Set a Rover MQTT ID in Settings.">Set a Rover MQTT ID in
+            Settings.</small></summary>
+        <div class="rover-network-actions">
+          <span id="roverMqttSample" role="status"></span>
+          <button type="button" class="button" data-open-rover-wifi data-rover-text="Set up ESP32 Wi-Fi">Set up ESP32
+            Wi-Fi</button>
+          <button type="button" id="roverMqttRefresh" class="button" disabled data-rover-text="Refresh readings">Refresh
+            readings</button>
+        </div>
+        <dl class="rover-telemetry-grid">
+          <div>
+            <dt data-rover-text="Rover relay pump">Rover relay pump</dt>
+            <dd id="mqttPump">—</dd>
+          </div>
+          <div data-expanded-mqtt hidden>
+            <dt data-rover-text="Water sample average">Water sample average</dt>
+            <dd id="mqttWaterAvg">—</dd>
+          </div>
+          <div data-expanded-mqtt hidden>
+            <dt data-rover-text="Fertilizer dispenser">Fertilizer dispenser</dt>
+            <dd id="mqttDispensing">—</dd>
+          </div>
+          <div data-expanded-mqtt hidden>
+            <dt data-rover-text="Firmware mission">Firmware mission</dt>
+            <dd id="mqttMission">—</dd>
+          </div>
+          <div data-expanded-mqtt hidden>
+            <dt data-rover-text="Configured drive speed">Configured drive speed</dt>
+            <dd id="mqttReportedSpeed">—</dd>
+          </div>
+          <div data-pi-mqtt>
+            <dt>Soil input</dt>
+            <dd id="mqttSoil">—</dd>
+          </div>
+          <div>
+            <dt>Temperature input</dt>
+            <dd id="mqttTemperature">—</dd>
+          </div>
+          <div>
+            <dt>Water level input</dt>
+            <dd id="mqttWater">—</dd>
+          </div>
+          <div>
+            <dt>Distance</dt>
+            <dd id="mqttDistance">—</dd>
+          </div>
+          <div data-pi-mqtt>
+            <dt>Light</dt>
+            <dd id="mqttLight">—</dd>
+          </div>
+          <div data-pi-mqtt>
+            <dt>N / P / K</dt>
+            <dd id="mqttNpk">—</dd>
+          </div>
+          <div data-pi-mqtt>
+            <dt>Drive report</dt>
+            <dd id="mqttDrive">—</dd>
+          </div>
+          <div data-pi-mqtt>
+            <dt>Servo output</dt>
+            <dd id="mqttServo">—</dd>
+          </div>
+          <div>
+            <dt>Probe / dispenser angles</dt>
+            <dd id="mqttAngles">—</dd>
+          </div>
+        </dl>
+      </details>
+      <dialog id="roverSettingsDialog" class="rover-settings-dialog" aria-labelledby="roverSettingsTitle">
+        <form method="dialog"><button class="icon-button" aria-label="Close rover settings"><svg class="icon"
+              aria-hidden="true">
+              <use href="#i-close" />
+            </svg></button></form>
+        <h2 id="roverSettingsTitle" data-rover-text="Rover settings">Rover settings</h2>
+        <p>These values come from the Pi. Apply calibration and treatment changes in its configuration, then restart the
+          control service.</p>
+        <div id="roverSettingsContent">Connect the Pi to view its configuration.</div>
+        <section id="roverMqttSettings" class="rover-settings-group" hidden>
+          <h3 data-rover-text="ESP32 network readings">ESP32 network readings</h3>
+          <p id="roverMqttSettingsHelp"
+            data-rover-text="The supplied firmware uses device01. Change the ID here if you changed the ESP32 topic.">
+            The supplied firmware uses device01. Change the ID here if you changed the ESP32 topic.</p>
+          <form id="roverMqttForm">
+            <label for="roverMqttId">Device ID from the firmware’s farmrover topic</label>
+            <div class="rover-mqtt-input">
+              <input id="roverMqttId" type="text" placeholder="device01" maxlength="64" autocomplete="off">
+              <button type="submit">Save ID</button>
+            </div>
+            <p id="roverMqttError" role="status"></p>
+            <button type="button" id="usePiMqttId" class="button" hidden data-rover-text="Use Pi-reported ID">Use
+              Pi-reported ID</button>
+            <button type="button" class="button" data-open-rover-wifi data-rover-text="Set up ESP32 Wi-Fi">Set up ESP32
+              Wi-Fi</button>
+          </form>
+        </section>
+        <section id="payloadMaintenance" class="rover-settings-group" aria-labelledby="payloadMaintenanceTitle" hidden>
+          <h3 id="payloadMaintenanceTitle">Servo maintenance</h3>
+          <p id="payloadServoStatus"></p>
+          <div class="rover-operation-actions">
+            <button id="payloadServo180" type="button" hidden>Test positional servo</button>
+            <button id="payloadServo360" type="button" hidden>Test continuous servo</button>
+            <button id="payloadServoDispenser" type="button" hidden>Test dispenser servo</button>
+          </div>
+        </section>
+      </dialog>
+      <section class="panel itinerary" id="itinerary">
+        <div class="itinerary-heading">
+          <div>
+            <div class="eyebrow">MAKE ROOM FOR THE IMPORTANT STOPS</div>
+            <h2>Your route itinerary <span id="pointCount">0 points</span></h2>
+          </div>
+          <div class="wait-control"><svg class="icon" aria-hidden="true">
+              <use href="#i-clock" />
+            </svg><label for="defaultWait">New stop wait</label>
+            <div class="number-field"><input id="defaultWait" type="number" min="0" max="86400"
+                value="5"><span>sec</span></div><button class="button" id="addStopShortcut"><svg class="icon"
+                aria-hidden="true">
+                <use href="#i-plus" />
+              </svg> Add a stop</button>
+          </div>
+        </div>
+        <div id="stops" class="stop-list"></div>
+        <div class="itinerary-footer"><span><svg class="icon" aria-hidden="true">
+              <use href="#i-route" />
+            </svg> Stops follow the order of your route. Click a stop card to find it on the map.</span><button
+            id="resetExample">Load example route <svg class="icon" aria-hidden="true">
+              <use href="#i-arrow" />
+            </svg></button></div>
+      </section>
+      <footer><span><svg class="icon" aria-hidden="true">
+            <use href="#i-leaf" />
+          </svg> <b>Enviro Rover</b><span class="footer-separator">/</span> A better view of the way
+          forward.</span><span>Raspberry Pi 5 <i>·</i> ESP32 <i>·</i> ROS 2 + Nav2</span></footer>
+    </main>
   </div>
-  <div id="taskProgress" class="rover-progress" hidden>
-    <progress id="taskProgressMeter" max="1" aria-label="Current movement phase progress"></progress>
-    <span id="taskProgressLabel"></span>
-  </div>
-</section>
-<div class="dashboard"><section class="panel map-panel" id="routeWorkspace"><div class="panel-heading"><div><div class="eyebrow">YOUR NAVIGATION CANVAS</div><h2 id="mapTitle">Workshop exploration</h2></div><span class="small-badge" id="mapBadge"><i></i>EXAMPLE MAP</span></div>
-<div class="map-switch"><button id="sceneTab" aria-pressed="false">Camera obstacle grid</button><button id="routeTab" aria-pressed="true">Route map</button><button id="qrCards" class="qr-link">QR codes</button><button id="historyTab" aria-pressed="false">History</button></div><section id="historyPanel" hidden><h3>Trip history</h3><div id="historyRows"></div></section>
-<div id="scenePanel" hidden><div class="map-switch"><button id="startScene">Start map camera</button><button id="stopScene">Stop map camera</button><span id="sceneRate"></span> <span style="display:inline-grid"><strong id="sceneQR" role="status"></strong><small id="sceneGPS">GNSS · waiting for Pi</small></span></div><div class="live-grid"><img id="mapLive" alt="Live camera grid" hidden></div><section class="journey"><h3>Route and obstacles</h3><div id="journey"></div><button id="sunset">Use local sunset</button><div id="sceneStatus" role="status"></div></section></div><div id="tripSummary" aria-live="polite"></div>
-<div class="map-toolbar"><div class="segmented" role="group" aria-label="Map tools"><button data-tool="draw" class="active" aria-pressed="true" title="Draw a route (D)"><svg class="icon" aria-hidden="true"><use href="#i-draw"/></svg> <span>Draw route</span></button><button data-tool="waypoint" aria-pressed="false" title="Add a waypoint (W)"><svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg> <span>Waypoint</span></button><button data-tool="stop" aria-pressed="false" title="Add a timed stop (S)"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg> <span>Add stop</span></button><button data-tool="block" aria-pressed="false" title="Draw a no-go area (B)"><svg class="icon" aria-hidden="true"><use href="#i-block"/></svg> <span>No-go area</span></button><button data-tool="pan" aria-label="Pan map" aria-pressed="false" title="Pan map (H), or hold Shift"><svg class="icon" aria-hidden="true"><use href="#i-pan"/></svg></button></div><div class="history-tools"><button id="undo" class="icon-button" title="Undo last edit (Ctrl/Cmd+Z)" aria-label="Undo route edit"><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg></button><button id="clear" class="icon-button" title="Clear route and areas" aria-label="Clear route"><svg class="icon" aria-hidden="true"><use href="#i-clear"/></svg></button></div></div>
-<div class="map-wrap"><canvas id="map" aria-label="Interactive route map: draw or click to add destinations" tabindex="0"></canvas><div class="map-topline"><span class="map-location"><svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg> <span id="mapMode">Planning sandbox</span></span><span class="north">N <span>↑</span></span></div><div class="map-coordinate" id="coordinate">MAP FRAME · METRES</div><div class="map-tools"><button id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button><button id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button><button id="fit" aria-label="Fit map" title="Fit the whole map"><svg class="icon" aria-hidden="true"><use href="#i-fit"/></svg></button></div><div class="scale"><span></span><small id="scaleText">2 m</small></div><div id="mapEmpty" class="map-empty" hidden><span class="empty-map-icon"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></span>Waiting for your real costmap<small>Your Pi is connected. Map data will appear here when Nav2 is ready.</small></div></div>
-<div class="tool-guidance"><svg class="icon" aria-hidden="true"><use href="#i-draw"/></svg><span id="toolHint">Click and drag from the rover to sketch your route.</span><kbd>SHIFT</kbd><small>to pan</small></div><div class="map-footer"><div class="legend"><span><i class="free"></i>Mapped free</span><span><i class="blocked"></i>Blocked / cost</span><span><i class="unknown"></i>Unknown</span><span><i class="route"></i>Planned route</span></div><small id="mapAge">EXAMPLE DATA · NO ROBOT CONNECTED</small></div></section>
-<aside class="right-column"><section class="panel mission"><div class="panel-heading"><div><div class="eyebrow">YOUR MISSION AT A GLANCE</div><h2>Mission overview</h2></div><span class="status-pill" id="missionState">Draft</span></div><div class="metrics"><div><strong id="distance">0.0<span> m</span></strong><small>Route length</small></div><div><strong id="stopCount">0</strong><small>Timed stops</small></div><div><strong id="dwell">0<span> s</span></strong><small>Total wait</small></div></div><div class="readiness"><div><span id="feedbackDot" class="state-dot"></span><span id="feedbackText">Connect your Pi to check readiness</span></div><div><span id="routeDot" class="state-dot"></span><span id="routeText">Draw a route to check the path</span></div></div><button id="arm" class="button arm-button" hidden><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg> Enable motor bridge</button><div class="mission-buttons"><button id="validate" class="button"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> Check route</button><button id="preview" class="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg> Preview</button></div><button id="start" class="start" disabled><span>Start mission</span><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button id="stop" class="stop-button" disabled><svg class="icon" aria-hidden="true"><use href="#i-stop"/></svg> Stop rover <kbd>ESC</kbd></button><p class="mission-hint" id="missionHint">Connect your Pi to send this mission to the rover.</p></section>
-<section class="panel vision" id="visionPanel"><div class="panel-heading"><div><div class="eyebrow">SEE WHAT YOUR ROVER SEES</div><h2>Rover camera <span class="camera-status-tag" id="cameraTag">Off</span></h2></div><div class="camera-actions"><button id="expandCamera" class="icon-button" title="Expand camera view" aria-label="Expand camera view"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button><label class="toggle"><input id="cameraToggle" type="checkbox" aria-label="Show USB webcam"><span></span></label></div></div><div class="camera-view"><img id="camera" alt="Live view from Raspberry Pi USB webcam" hidden><div id="cameraPlaceholder"><div class="camera-reticle"><i></i><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg><i></i></div><b>Rover webcam</b><span>View the rover’s live feed.</span><button id="cameraOpen">Show camera <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div><div class="camera-label" aria-label="Camera information">
-  <span class="camera-pill" id="cameraFeedStatus" data-state="off"><span class="camera-dot" aria-hidden="true"></span><strong id="cameraState">Camera off</strong></span>
-  <span class="camera-pill" id="cameraQRStatus" hidden><span class="camera-pill-key" aria-hidden="true">QR</span><span id="cameraQR" role="status"></span></span>
-  <span class="camera-pill" id="cameraGPSStatus" role="group" aria-label="GPS: No fix" hidden><span class="camera-pill-key" aria-hidden="true">GPS</span><span id="cameraGPS">No fix</span></span>
-</div><div class="camera-crosshair"></div></div><div class="steering"><div class="map-switch"><button id="manualMode" aria-pressed="true">Manual steering</button><button id="autoMode" aria-pressed="false">Automatic</button></div><div id="autoControls" hidden><p>Scans for the nearest eligible QR card.</p><button id="autoStart">Start</button> </div><div class="rover-speed-control"><label for="driveSpeed">Drive speed · <output id="driveSpeedValue">128 / 255 PWM</output></label><input id="driveSpeed" type="range" min="0" max="255" step="1" value="128"><p id="driveSpeedFormula">Motor A: 93 · Motor B: 128 PWM</p><small>Automatic tasks hold the selected speed until they finish.</small></div><p id="steerStatus" role="status">Connect the Pi to steer.</p><div class="drive-pad" aria-label="Hold to steer"><button data-drive="forward" disabled>↑ Forward</button><button data-drive="left" disabled>← Left</button><button data-drive="right" disabled>Right →</button><button data-drive="back" disabled>↓ Reverse</button></div></div><div class="vision-note"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><p><b>Look with the camera. Navigate with the map.</b> Free and blocked areas come from Nav2’s real costmap; the camera view alone doesn’t verify a drivable path.</p></div></section></aside></div>
-<details id="roverResults" class="panel rover-results">
-  <summary><span>Soil and treatment</span><small id="resultSummary">No measurements yet</small></summary>
-  <section id="payloadPanel" class="rover-results-content" aria-labelledby="payloadTitle">
-    <h3 id="payloadTitle">ESP32 hardware</h3>
-    <p id="payloadStatus" role="status">Connect the Pi to view hardware status.</p>
-    <dl id="payloadReadings" class="soil-grid" hidden>
-      <div class="soil-reading"><dt>Soil moisture input</dt><dd id="payloadSoil" class="soil-value">—</dd></div>
-      <div class="soil-reading"><dt>Water level input</dt><dd id="payloadWater" class="soil-value">—</dd></div>
-      <div class="soil-reading"><dt>Ultrasonic range</dt><dd id="payloadRange" class="soil-value">—</dd></div>
-      <div class="soil-reading"><dt>Light</dt><dd id="payloadLight" class="soil-value">—</dd></div>
-    </dl>
-    <p id="payloadActuators"></p>
-    <p id="payloadServoStatus"></p>
-    <div class="rover-operation-actions">
-      <button id="payloadServo180" type="button" hidden>Test positional servo</button>
-      <button id="payloadServo360" type="button" hidden>Test continuous servo</button>
+  <dialog id="qrDialog" style="width:min(960px,96vw);max-width:96vw"><button id="closeQR" type="button"
+      class="button">Close QR cards</button><iframe id="qrFrame" title="Printable rover QR cards"
+      style="display:block;width:100%;height:70vh;border:0"></iframe></dialog>
+  <dialog id="roverWifiDialog" class="rover-settings-dialog" aria-labelledby="roverWifiTitle">
+    <form method="dialog"><button type="submit" class="icon-button" aria-label="Close" data-rover-aria="Close"><svg
+          class="icon" aria-hidden="true">
+          <use href="#i-close" />
+        </svg></button></form>
+    <h2 id="roverWifiTitle" data-rover-text="Set up ESP32 Wi-Fi">Set up ESP32 Wi-Fi</h2>
+    <ol class="rover-wifi-steps">
+      <li
+        data-rover-text="Power on the rover. If its saved Wi-Fi is unavailable, join FarmRover-Setup in your device’s Wi-Fi settings.">
+        Power on the rover. If its saved Wi-Fi is unavailable, join FarmRover-Setup in your device’s Wi-Fi settings.
+      </li>
+      <li><span
+          data-rover-text="For the supplied sketch, FarmRover-Setup is open. Join it and open the Wi-Fi portal.">For the
+          supplied sketch, FarmRover-Setup is open. Join it and open the Wi-Fi portal.</span> <a
+          href="http://192.168.4.1/" target="_blank" rel="noopener noreferrer">192.168.4.1 ↗</a></li>
+      <li
+        data-rover-text="Choose your network and save it in the portal. Then reconnect your phone or computer to its usual Wi-Fi and return to EnviroOS.">
+        Choose your network and save it in the portal. Then reconnect your phone or computer to its usual Wi-Fi and
+        return to EnviroOS.</li>
+    </ol>
+    <p data-rover-text="The portal closes after 3 minutes. If setup timed out, restart the ESP32 and try again.">The
+      portal closes after 3 minutes. If setup timed out, restart the ESP32 and try again.</p>
+    <p
+      data-rover-text="This sketch provides MQTT readings in the app. Pi controls require the separate USB bridge firmware.">
+      This sketch provides MQTT readings in the app. Pi controls require the separate USB bridge firmware.</p>
+  </dialog>
+  <dialog id="connectDialog">
+    <form id="connectForm">
+      <div class="dialog-top"><span class="dialog-symbol"><svg class="icon" aria-hidden="true">
+            <use href="#i-link" />
+          </svg></span><button type="button" id="closeDialog" class="icon-button"
+          aria-label="Close connection settings"><svg class="icon" aria-hidden="true">
+            <use href="#i-close" />
+          </svg></button></div>
+      <div class="eyebrow">LET’S BRING YOUR ROVER ONLINE</div>
+      <h2>Connect to your Pi.</h2>
+      <p>Use the Pi’s own web address on your Wi-Fi for live control. The hosted page needs an HTTPS Pi endpoint.</p>
+      <label>Pi API address<input id="apiBase" type="url" placeholder="http://raspberrypi.local:8088" required
+          autocomplete="url"></label><label>Web API token<input id="apiToken" type="password" autocomplete="off"
+          placeholder="The ROVER_WEB_TOKEN set on your Pi" required></label>
+      <div class="connection-tip"><svg class="icon" aria-hidden="true">
+          <use href="#i-shield" />
+        </svg><span>Your token stays in this browser tab. It is separate from the ESP32’s firmware token.</span></div>
+      <div class="dialog-actions"><button type="button" id="disconnect" class="button subtle">Disconnect</button><button
+          class="button primary" type="submit">Connect rover <svg class="icon" aria-hidden="true">
+            <use href="#i-arrow" />
+          </svg></button></div>
+      <p id="connectError" role="alert"></p>
+      <div class="dialog-links"><button type="button" class="button" data-open-rover-wifi
+          data-rover-text="Set up ESP32 Wi-Fi">Set up ESP32 Wi-Fi</button><a href="setup.html" target="_blank"
+          rel="noopener">First time? Read the setup guide ↗</a><a href="pi-package.tar.gz" download>Download Pi software
+          ↓</a></div>
+    </form>
+  </dialog>
+  <dialog id="helpDialog">
+    <div class="dialog-top"><span class="dialog-symbol"><svg class="icon" aria-hidden="true">
+          <use href="#i-route" />
+        </svg></span><button id="closeHelp" class="icon-button" aria-label="Close quick start guide"><svg class="icon"
+          aria-hidden="true">
+          <use href="#i-close" />
+        </svg></button></div>
+    <div class="eyebrow">A QUICK TOUR</div>
+    <h2>From a line to a mission.</h2>
+    <div class="help-step"><span>1</span>
+      <div><b>Sketch your route</b>
+        <p>Use Draw route and drag from the rover, or click Waypoint to build it point by point.</p>
+      </div>
     </div>
-  </section>
-  <section class="rover-results-content" aria-labelledby="pestTitle">
-    <h3 id="pestTitle">Pest detection</h3>
-    <p id="pestStatus" role="status">Connect the Pi to view pest detection.</p>
-    <p id="pestReading"></p>
-  </section>
-  <div id="taskDetails" class="rover-results-content"></div>
-</details>
-<dialog id="roverSettingsDialog" class="rover-settings-dialog" aria-labelledby="roverSettingsTitle">
-  <form method="dialog"><button class="icon-button" aria-label="Close rover settings"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></form>
-  <h2 id="roverSettingsTitle">Rover settings</h2>
-  <p>These values come from the Pi. Apply calibration and treatment changes in its configuration, then restart the control service.</p>
-  <div id="roverSettingsContent">Connect the Pi to view its configuration.</div>
-</dialog>
-<section class="panel itinerary" id="itinerary"><div class="itinerary-heading"><div><div class="eyebrow">MAKE ROOM FOR THE IMPORTANT STOPS</div><h2>Your route itinerary <span id="pointCount">0 points</span></h2></div><div class="wait-control"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><label for="defaultWait">New stop wait</label><div class="number-field"><input id="defaultWait" type="number" min="0" max="86400" value="5"><span>sec</span></div><button class="button" id="addStopShortcut"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> Add a stop</button></div></div><div id="stops" class="stop-list"></div><div class="itinerary-footer"><span><svg class="icon" aria-hidden="true"><use href="#i-route"/></svg> Stops follow the order of your route. Click a stop card to find it on the map.</span><button id="resetExample">Load example route <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></section>
-<footer><span><svg class="icon" aria-hidden="true"><use href="#i-leaf"/></svg> <b>Enviro Rover</b><span class="footer-separator">/</span> A better view of the way forward.</span><span>Raspberry Pi 5 <i>·</i> ESP32 <i>·</i> ROS 2 + Nav2</span></footer></main></div>
-<dialog id="qrDialog" style="width:min(960px,96vw);max-width:96vw"><button id="closeQR" type="button" class="button">Close QR cards</button><iframe id="qrFrame" title="Printable rover QR cards" style="display:block;width:100%;height:70vh;border:0"></iframe></dialog>
-<dialog id="connectDialog"><form id="connectForm"><div class="dialog-top"><span class="dialog-symbol"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg></span><button type="button" id="closeDialog" class="icon-button" aria-label="Close connection settings"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><div class="eyebrow">LET’S BRING YOUR ROVER ONLINE</div><h2>Connect to your Pi.</h2><p>Use the Pi’s own web address on your Wi-Fi for live control. The hosted page needs an HTTPS Pi endpoint.</p><label>Pi API address<input id="apiBase" type="url" placeholder="http://raspberrypi.local:8088" required autocomplete="url"></label><label>Web API token<input id="apiToken" type="password" autocomplete="off" placeholder="The ROVER_WEB_TOKEN set on your Pi" required></label><div class="connection-tip"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Your token stays in this browser tab. It is separate from the ESP32’s firmware token.</span></div><div class="dialog-actions"><button type="button" id="disconnect" class="button subtle">Disconnect</button><button class="button primary" type="submit">Connect rover <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div><p id="connectError" role="alert"></p><div class="dialog-links"><a href="setup.html" target="_blank" rel="noopener">First time? Read the setup guide ↗</a><a href="pi-package.tar.gz" download>Download Pi software ↓</a></div></form></dialog>
-<dialog id="helpDialog"><div class="dialog-top"><span class="dialog-symbol"><svg class="icon" aria-hidden="true"><use href="#i-route"/></svg></span><button id="closeHelp" class="icon-button" aria-label="Close quick start guide"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><div class="eyebrow">A QUICK TOUR</div><h2>From a line to a mission.</h2><div class="help-step"><span>1</span><div><b>Sketch your route</b><p>Use Draw route and drag from the rover, or click Waypoint to build it point by point.</p></div></div><div class="help-step"><span>2</span><div><b>Make a few stops</b><p>Choose Add stop and click anywhere on the route. Set each wait in the itinerary below.</p></div></div><div class="help-step"><span>3</span><div><b>Check, connect, then go</b><p>Check the route against mapped space. A real mission needs your Pi, measured odometry and the motor bridge ready.</p></div></div><div class="shortcut-guide"><span><kbd>D</kbd> Draw</span><span><kbd>W</kbd> Waypoint</span><span><kbd>S</kbd> Stop</span><span><kbd>B</kbd> No-go</span><span><kbd>H</kbd> Pan</span><span><kbd>ESC</kbd> Stop rover</span></div><a class="button primary guide-link" href="setup.html" target="_blank" rel="noopener">Open full setup guide <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></dialog>
-<div id="toast" role="status" aria-live="polite" hidden></div><input type="file" id="fileInput" accept="application/json,.json" hidden><script type="module" src="app.js"></script></body></html>
+    <div class="help-step"><span>2</span>
+      <div><b>Make a few stops</b>
+        <p>Choose Add stop and click anywhere on the route. Set each wait in the itinerary below.</p>
+      </div>
+    </div>
+    <div class="help-step"><span>3</span>
+      <div><b>Check, connect, then go</b>
+        <p>Check the route against mapped space. A real mission needs your Pi, measured odometry and the motor bridge
+          ready.</p>
+      </div>
+    </div>
+    <div class="shortcut-guide"><span><kbd>D</kbd> Draw</span><span><kbd>W</kbd> Waypoint</span><span><kbd>S</kbd>
+        Stop</span><span><kbd>B</kbd> No-go</span><span><kbd>H</kbd> Pan</span><span><kbd>ESC</kbd> Stop rover</span>
+    </div><a class="button primary guide-link" href="setup.html" target="_blank" rel="noopener">Open full setup guide
+      <svg class="icon" aria-hidden="true">
+        <use href="#i-arrow" />
+      </svg></a>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div><input type="file" id="fileInput"
+    accept="application/json,.json" hidden>
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>

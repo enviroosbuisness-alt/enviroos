@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -18,7 +18,7 @@
   <script>try { if (localStorage.getItem('enviroos.glass') === '1') document.body.classList.add('glass'); } catch (e) {}</script>
   <div class="app">
     <header class="hd">
-      <button class="brand" id="btn-farm" type="button" aria-label="My Farm">
+      <button class="brand" id="btn-farm" type="button" aria-label="My Farm" data-i18n-aria="profile_title">
         <span class="brand-mark" aria-hidden="true"><span class="material-symbols-outlined">eco</span></span>
         <span class="brand-text">
           <span class="brand-name" data-i18n="app_name">EnviroOS</span>
@@ -26,14 +26,14 @@
         </span>
       </button>
       <div class="hd-actions">
-        <button class="pill pill-wake" id="btn-wake" type="button" data-wake-tap="1" aria-label="Hands-free mode"><span class="dot" aria-hidden="true"></span><span id="hf-badge-label">Standby Off</span></button>
-        <button class="pill" id="btn-node" type="button" aria-label="Sensor Node"></button>
-        <button class="pill pill-lang" id="btn-lang" type="button" aria-label="Language"></button>
-        <button class="iconbtn" id="btn-theme" type="button" aria-label="Toggle Dark Mode"></button>
-        <button class="iconbtn" id="btn-alerts" type="button" aria-label="Alerts"></button>
-        <button class="iconbtn" id="btn-market" type="button" aria-label="Market" title="Market"><span class="material-symbols-outlined">storefront</span></button>
-        <button class="iconbtn" id="btn-cmd" type="button" aria-label="Quick Actions"><span class="material-symbols-outlined">search</span></button>
-        <button class="iconbtn" id="btn-settings" type="button" aria-label="Settings"></button>
+        <button class="pill pill-wake" id="btn-wake" type="button" data-wake-tap="1" aria-label="Hands-free mode" data-i18n-aria="hf_title"><span class="dot" aria-hidden="true"></span><span id="hf-badge-label">Standby Off</span></button>
+        <button class="pill" id="btn-node" type="button" aria-label="Sensor Node" data-i18n-aria="node_sheet_title"></button>
+        <button class="pill pill-lang" id="btn-lang" type="button" aria-label="Language" data-i18n-aria="lang_title"></button>
+        <button class="iconbtn" id="btn-theme" type="button" aria-label="Dark theme"></button>
+        <button class="iconbtn" id="btn-alerts" type="button" aria-label="Alerts" data-i18n-aria="display_alerts"></button>
+        <button class="iconbtn" id="btn-market" type="button" aria-label="Market" data-i18n-aria="nav_market" title="Market" data-i18n-title="nav_market"><span class="material-symbols-outlined">storefront</span></button>
+        <button class="iconbtn" id="btn-cmd" type="button" aria-label="Quick Actions" data-i18n-aria="display_search"><span class="material-symbols-outlined">search</span></button>
+        <button class="iconbtn" id="btn-settings" type="button" aria-label="Settings" data-i18n-aria="settings_title"></button>
       </div>
     </header>
 
@@ -45,28 +45,28 @@
     <div class="voicebar" id="voicebar" role="status" aria-live="polite"></div>
 
     <main id="main">
-      <section class="screen" id="s-home" aria-label="Home"></section>
-      <section class="screen" id="s-soil" aria-label="Soil"></section>
-      <section class="screen" id="s-crop" aria-label="Crop"></section>
-      <section class="screen" id="s-weather" aria-label="Weather"></section>
-      <section class="screen" id="s-agri" aria-label="Agri AI"></section>
-      <section class="screen" id="s-robot" aria-label="Pump & Robot"></section>
-      <section class="screen" id="s-rover" aria-label="Rover"></section>
-      <section class="screen" id="s-history" aria-label="History"></section>
-      <section class="screen" id="s-market" aria-label="Market"></section>
-      <section class="screen" id="s-second-device" aria-label="Second Device"></section>
+      <section class="screen" id="s-home" aria-label="Home" data-i18n-aria="nav_home"></section>
+      <section class="screen" id="s-soil" aria-label="Soil" data-i18n-aria="nav_soil"></section>
+      <section class="screen" id="s-crop" aria-label="Crop" data-i18n-aria="nav_crop"></section>
+      <section class="screen" id="s-weather" aria-label="Weather" data-i18n-aria="nav_weather"></section>
+      <section class="screen" id="s-agri" aria-label="Agri AI" data-i18n-aria="agri_title"></section>
+      <section class="screen" id="s-robot" aria-label="Pump & Robot" data-i18n-aria="pump_title"></section>
+      <section class="screen" id="s-rover" aria-label="Rover" data-i18n-aria="nav_rover"></section>
+      <section class="screen" id="s-history" aria-label="History" data-i18n-aria="nav_history"></section>
+      <section class="screen" id="s-market" aria-label="Market" data-i18n-aria="nav_market"></section>
+      <section class="screen" id="s-second-device" aria-labelledby="device-page-title"></section>
     </main>
 
-    <nav class="tabs" aria-label="Main Navigation"><div class="tabs-in" id="tabs"></div></nav>
-    <aside class="rail" aria-label="Main Navigation"><div class="rail-in" id="rail"></div><button class="tab rail-account" type="button" data-open-signin="1" aria-label="Account" title="Account"><span class="tab-pill"><span class="material-symbols-outlined ui-ic" aria-hidden="true">account_circle</span></span><span class="tab-lbl" data-i18n="account_nav">Account</span></button></aside>
+    <nav class="tabs" aria-label="Main Navigation" data-i18n-aria="main_navigation"><div class="tabs-in" id="tabs"></div></nav>
+    <aside class="rail" aria-label="Main Navigation" data-i18n-aria="main_navigation"><div class="rail-in" id="rail"></div><button class="tab rail-account" type="button" data-open-signin="1" aria-label="Account" data-i18n-aria="account_nav" title="Account" data-i18n-title="account_nav"><span class="tab-pill"><span class="material-symbols-outlined ui-ic" aria-hidden="true">account_circle</span></span><span class="tab-lbl" data-i18n="account_nav">Account</span></button></aside>
   </div>
 
-  <div class="cmd" id="cmd" role="dialog" aria-modal="true" aria-label="Quick Actions">
+  <div class="cmd" id="cmd" role="dialog" aria-modal="true" aria-label="Quick Actions" data-i18n-aria="display_search">
     <div class="cmd-box">
       <div class="cmd-head">
         <span class="material-symbols-outlined" aria-hidden="true">search</span>
-        <input id="cmd-input" autocomplete="off" />
-        <button class="iconbtn sm" id="cmd-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+        <input id="cmd-input" aria-label="Search" data-i18n-aria="display_search" autocomplete="off" />
+        <button class="iconbtn sm" id="cmd-close" type="button" aria-label="Close" data-i18n-aria="close_label"><span class="material-symbols-outlined">close</span></button>
       </div>
       <div class="cmd-list" id="cmd-list" role="listbox"></div>
     </div>
@@ -77,7 +77,7 @@
     <div class="hf-panel-head">
       <span class="hf-mark" aria-hidden="true"><span class="material-symbols-outlined">mic</span></span>
       <div><strong id="hf-panel-title">Agri AI</strong><div id="hf-panel-status" role="status" aria-live="polite"></div></div>
-      <button class="iconbtn sm" type="button" id="hf-dismiss" aria-label="Close"><span aria-hidden="true" class="material-symbols-outlined">close</span></button>
+      <button class="iconbtn sm" type="button" id="hf-dismiss" aria-label="Close" data-i18n-aria="close_label"><span aria-hidden="true" class="material-symbols-outlined">close</span></button>
     </div>
     <p id="hf-panel-note" class="hf-note" hidden></p>
     <p id="hf-transcript" class="hf-transcript" hidden></p>

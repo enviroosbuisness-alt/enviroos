@@ -57,7 +57,7 @@
   background:var(--enviro-bad-bg);color:var(--enviro-bad);border-color:var(--enviro-line);
 }
 .enviro-ui .drive-pad button {min-height:58px;white-space:normal;padding:10px 5px}
-.enviro-ui button:focus-visible,.enviro-ui a:focus-visible,.enviro-ui input:focus-visible,
+.enviro-ui button:focus-visible,.enviro-ui a:focus-visible,.enviro-ui input:focus-visible,.enviro-ui textarea:focus-visible,
 .enviro-ui select:focus-visible {outline:3px solid var(--enviro-accent);outline-offset:3px}
 .enviro-ui .notice,.enviro-ui .notice.live {background:var(--enviro-ok-bg);color:var(--enviro-sub);border:1px solid var(--enviro-line);border-radius:14px;font-size:14px}
 .enviro-ui .notice b {color:var(--enviro-ink)}
@@ -83,8 +83,8 @@
 .enviro-ui .stop-card-title>span {background:var(--enviro-ok-bg);color:var(--enviro-ink);border-color:var(--enviro-line)}
 .enviro-ui .stop-list,.enviro-ui .itinerary-heading,.enviro-ui .itinerary-footer,.enviro-ui .panel-heading {border-color:var(--enviro-line)}
 .enviro-ui .empty-stops p,.enviro-ui .empty-stops small {color:var(--enviro-muted);font-size:14px}
-.enviro-ui input,.enviro-ui select,.enviro-ui dialog input {background:var(--enviro-card);color:var(--enviro-ink);border:1px solid var(--enviro-line);border-radius:10px;min-height:48px;font:inherit}
-.enviro-ui input::placeholder {color:var(--enviro-muted)}
+.enviro-ui input,.enviro-ui textarea,.enviro-ui select,.enviro-ui dialog input {background:var(--enviro-card);color:var(--enviro-ink);border:1px solid var(--enviro-line);border-radius:10px;min-height:48px;font:inherit}
+.enviro-ui input::placeholder,.enviro-ui textarea::placeholder {color:var(--enviro-muted)}
 .enviro-ui .number-field input {background:transparent}
 .enviro-ui dialog {padding:24px;border:1px solid var(--enviro-line)}
 .enviro-ui dialog label,.enviro-ui .help-step b {color:var(--enviro-ink);font-size:14px}
@@ -225,11 +225,11 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 
 /* Rover console uses the same surface, status and control tokens as EnviroOS. */
 .enviro-ui .rover-operation,
-.enviro-ui .rover-results {padding:14px 16px;margin-bottom:12px}
+.enviro-ui .rover-dispensing {padding:14px 16px;margin-bottom:12px}
 .rover-operation-main {display:flex;align-items:center;justify-content:space-between;gap:12px}
 .rover-operation-copy {min-width:0}
 .enviro-ui .rover-operation h2 {margin:4px 0 2px;font-size:clamp(16px,2vw,21px);line-height:1.2;overflow-wrap:anywhere}
-.rover-operation p,.rover-results p {margin:4px 0;color:var(--enviro-sub);font-size:13px}
+.rover-operation p,.rover-dispensing p {margin:4px 0;color:var(--enviro-sub);font-size:13px}
 .rover-mode {display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;background:var(--enviro-card-2);color:var(--enviro-sub);font-size:11px;font-weight:750}
 .rover-mode::before {content:"";inline-size:6px;block-size:6px;border-radius:50%;background:currentColor}
 [data-tone="active"] .rover-mode {background:var(--enviro-ok-bg);color:var(--enviro-ink)}
@@ -239,19 +239,15 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .enviro-ui .rover-operation-actions button,.enviro-ui #taskEmergencyStop {min-height:44px;padding:7px 11px;font-size:12px}
 .rover-progress {display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--enviro-sub)}
 .rover-progress progress {flex:1;min-width:0;accent-color:var(--enviro-accent)}
-.rover-results {margin-top:12px}
-.rover-results summary {cursor:pointer;min-height:28px;font-weight:750;line-height:1.6;overflow-wrap:anywhere}
-.rover-results summary small {margin-inline-start:8px;font-weight:500;color:var(--enviro-sub)}
-.rover-results summary:focus-visible {outline:2px solid var(--enviro-accent);outline-offset:4px}
-.rover-results-content {padding-top:10px}
-.soil-grid,.treatment-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
-.soil-reading,.treatment-grid div {padding:10px;border-radius:12px;background:var(--enviro-card-2);overflow-wrap:anywhere}
-.soil-grid dt,.treatment-grid dt,.rover-settings-group dt {color:var(--enviro-sub);font-size:12px}
-.soil-grid dd,.treatment-grid dd,.rover-settings-group dd {margin:0}
-.soil-value {font-size:16px;font-weight:750}
-.soil-ok,.soil-low {font-size:12px;font-weight:650}
-.enviro-ui .soil-low {color:var(--enviro-bad)}
-.enviro-ui .soil-ok {color:var(--enviro-sub)}
+.rover-dispensing {margin-top:12px}
+.rover-dispensing h2 {margin:0 0 8px;font-size:16px}
+.dispensing-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dispensing-card {padding:10px 12px;border-radius:10px;background:var(--enviro-card-2);overflow-wrap:anywhere}
+.dispensing-card h3 {margin:0;font-size:14px}
+.rover-dispensing [role="status"] {color:inherit;font-weight:650}
+.dispensing-detail:empty {display:none}
+.rover-settings-group dt {color:var(--enviro-sub);font-size:12px}
+.rover-settings-group dd {margin:0}
 .enviro-ui .rover-settings-dialog {width:min(94vw,580px);overflow:auto}
 .rover-settings-dialog form {float:right;margin-left:10px}
 .rover-settings-dialog h2 {margin:5px 0}
@@ -274,15 +270,14 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .simple-rover #steerStatus {min-height:0;margin:4px 0 6px}
 .simple-rover .camera-view {height:240px}
 @media(max-width:660px){
- .enviro-ui .rover-operation,.enviro-ui .rover-results {padding:10px 12px;margin-bottom:8px}
+ .enviro-ui .rover-operation,.enviro-ui .rover-dispensing {padding:10px 12px;margin-bottom:8px}
  .rover-operation-main {align-items:flex-start;flex-wrap:wrap;gap:7px}
  .rover-operation-copy {flex:1 1 140px}
  .rover-operation-actions {justify-content:flex-start}
  .simple-rover header button {padding:6px 8px;min-height:40px}
  .simple-rover .camera-view {height:145px}
  .simple-rover .drive-pad button {min-height:42px}
- .soil-grid,.treatment-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
- .rover-results summary small {display:block;margin-inline-start:14px}
+ .dispensing-grid {grid-template-columns:1fr}
 }
 
 .rover-progress[hidden] {display:none}
@@ -291,7 +286,7 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
 .simple-rover .rover-operation[data-tone="idle"] .rover-operation-copy {display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px}
 .simple-rover .rover-operation[data-tone="idle"] h2 {margin:0}
 .simple-rover .rover-operation[data-tone="idle"] #taskSummary {flex-basis:100%}
-.simple-rover .rover-results {padding-block:8px}
+.simple-rover .rover-dispensing {padding-block:8px}
 .simple-rover .rover-settings-button {display:inline-flex;align-items:center;gap:6px}
 .simple-rover .rover-settings-button svg {width:17px;height:17px}
 .simple-rover #steerStatus:empty {display:none}
@@ -351,14 +346,58 @@ html.embedded,html.embedded body {overflow:hidden;height:auto;min-height:0;}
   .enviro-ui .camera-label {top:7px;left:7px;right:7px;font-size:11px}
   .enviro-ui .camera-pill {padding:3px 6px}
 }
-#payloadPanel h3 {margin:0 0 3px;font-size:15px}
-#payloadPanel .rover-operation-actions {justify-content:flex-start;margin-top:5px}
-#payloadReadings[hidden],#payloadPanel button[hidden],#payloadPanel p:empty {display:none}
+#payloadMaintenance .rover-operation-actions {justify-content:flex-start;margin-top:5px}
+#payloadMaintenance[hidden],#payloadMaintenance button[hidden] {display:none}
 
 /* Match the host console's flat surfaces in standalone and embedded modes. */
 .enviro-ui :is(.panel,header,article,.mobile-nav) {box-shadow:none;border-radius:12px}
 .enviro-ui :is(.button,button,.map-switch button,.drive-pad button) {border-radius:8px;box-shadow:none}
-.enviro-ui :is(.camera-view,.soil-reading,.treatment-grid div) {border-radius:10px}
+.enviro-ui .camera-view {border-radius:10px}
 .enviro-ui .workspace header {border-radius:0}
 .enviro-ui .camera-view:has(#camera[hidden]) {background:#13241d}
 .enviro-ui dialog {border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+
+.rover-telemetry {margin:0 0 12px;padding:12px 16px;}
+.rover-telemetry summary {cursor:pointer;font-size:14px;font-weight:650;}
+.rover-telemetry summary small {margin-inline-start:8px;color:var(--enviro-sub);font-weight:400;overflow-wrap:anywhere;}
+.rover-telemetry-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0 0;}
+.rover-telemetry-grid div {background:var(--enviro-card-2);padding:8px;border-radius:8px;}
+.rover-telemetry-grid dt {color:var(--enviro-sub);font-size:12px;}
+.rover-telemetry-grid dd {margin:2px 0 0;font-weight:650;}
+#roverMqttForm {float:none;margin:0 0 12px;}
+.rover-mqtt-input {display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.rover-mqtt-input input {min-width:0;flex:1 1 160px;}
+
+.rover-dispensing .pump-action { margin-block-start: 10px; }
+.rover-dispensing #dispensingStop { margin-block-start: 12px; }
+.rover-dispensing #dispensingStop[hidden] { display: none; }
+
+.rover-inspection { padding:14px 16px; margin-block:12px; }
+.rover-inspection h2 { margin:0 0 10px; font-size:16px; }
+.inspection-steps { margin:0; padding:0; list-style:none; display:grid; gap:6px; max-width:700px; }
+.inspection-steps li { display:grid; grid-template-columns:2ch minmax(0,2fr) minmax(76px,1fr) auto; gap:8px; align-items:center; }
+.inspection-steps input,.inspection-steps select { width:100%; min-width:0; padding-inline:8px; }
+.inspection-footer { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.inspection-footer label { display:inline-flex; gap:6px; align-items:center; margin-inline-end:auto; font-size:13px; }
+.enviro-ui .inspection-footer input[type="checkbox"] { min-height:0; }
+.inspection-note,#inspectionStatus { margin:8px 0; font-size:13px; color:var(--enviro-sub); }
+@media (max-width:500px) {
+  .inspection-steps li { grid-template-columns:2ch minmax(0,1fr) minmax(64px,auto) auto; gap:5px; }
+  .inspection-steps input { max-width:80px; }
+}
+
+.rover-network-actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-block:10px; }
+.rover-network-actions span:empty { display:none; }
+.rover-wifi-steps { display:grid; gap:10px; padding-inline-start:1.4em; }
+
+.rover-telemetry-grid > [hidden] { display: none; }
+
+.rover-firmware-tools { margin-block-start: 12px; }
+.rover-firmware-tools[hidden] { display: none; }
+.rover-firmware-tools summary { cursor: pointer; }
+.simple-rover.rover-disconnected.direct-mqtt-control .drive-pad:not([style*="display: none"]) { display: grid; }
+.simple-rover.rover-disconnected.direct-mqtt-control .rover-speed-control { display: block; }
+.embedded #autoControls[hidden],
+.embedded #autoCancelMqtt[hidden],
+.embedded #directQrStart[hidden],
+.embedded #directQrStop[hidden] { display: none; }

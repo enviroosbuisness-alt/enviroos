@@ -10,8 +10,8 @@ window.EnviroOS = window.EnviroOS || {};
   const E = EnviroOS;
   const t = (k) => E.i18n.t(k);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const fmt1 = (v) => (v == null || Number.isNaN(+v) ? '—' : (Math.round(+v * 10) / 10));
-  const fmtInt = (v) => (v == null || Number.isNaN(+v) ? '—' : Math.round(+v));
+  const fmt1 = v => E.i18n.number(v, 1);
+  const fmtInt = v => E.i18n.number(v);
   const $ = (id) => document.getElementById(id);
 
   const U = {
@@ -182,14 +182,35 @@ window.EnviroOS = window.EnviroOS || {};
 
   U.modelName = value => U.MODELS.find(model => model.id ===
     String(value || '').trim().toLowerCase().replace(/ /g, '_'))?.label || '';
+  U.MAX_NODES = 4;
+  U.nodeCount = (model, saved, max = U.MAX_NODES) => {
+    if (max < 1 || !U.modelName(model)) return 0;
+    const count = Number(saved);
+    return Number.isInteger(count) ? Math.min(max, Math.max(1, count)) : 1;
+  };
   U.deviceLabel = id => id === E.MQTT_SECOND_DEVICE
     ? U.modelName(U.auth?.assistantModel) || t('device_secondary')
     : U.modelName(U.auth?.mainModel) || t('device_main');
+  U.hasSecondary = () => Boolean(U.modelName(U.auth?.assistantModel));
+  U.otherNodes = () => {
+    const auth = U.auth || {};
+    const mainCount = U.nodeCount(auth.mainModel, auth.mainNodeCount);
+    const secondaryCount = U.nodeCount(auth.assistantModel, auth.assistantNodeCount, U.MAX_NODES - mainCount);
+    const secondary = Array.from({length:secondaryCount}, (_, i) => ({key:'secondary-' + i, model:U.modelName(auth.assistantModel)}));
+    const extraMain = Array.from({length:Math.max(0, mainCount - 1)}, (_, i) => ({key:!secondaryCount && i === 0 ? 'secondary-0' : 'main-' + (i+1), model:U.modelName(auth.mainModel)}));
+    const otherCount = U.nodeCount(auth.otherModel, auth.otherNodeCount, U.MAX_NODES - mainCount - secondaryCount);
+    const other = Array.from({length:otherCount}, (_, i) => ({key:'other-' + i, model:U.modelName(auth.otherModel)}));
+    const slots = [...secondary.slice(0, 1), ...extraMain, ...secondary.slice(1), ...other];
+    return slots.map((slot, index) => index < 2 ? {...slot, key:'enviro-d' + (index + 2)} : slot);
+  };
+  U.otherDeviceRoutes = ['second-device', 'other-device-2', 'other-device-3'];
+  U.otherDeviceForRoute = route => U.otherNodes()[U.otherDeviceRoutes.indexOf(route)];
+  U.otherDeviceTabLabel = index => 'Enviro D' + (index + 2);
+  U.hasOtherNodes = () => U.otherNodes().length > 0;
   U.hasRover = () => String(U.auth?.mainModel || '').trim().toLowerCase() === 'rover';
 
   /* ---------- second device state (read-only live connection) ---------- */
   U.isSecondDeviceOn = () => !!U.secondDevice?.status().online;
-  U.setSecondDevicePower = on => on ? U.dlgConnectSecondDevice?.() : U.secondDevice?.pause();
 
   /* ---------- profile / theme / lang ---------- */
   const DEF_PROFILE = () => ({
@@ -229,6 +250,7 @@ window.EnviroOS = window.EnviroOS || {};
       btnTheme.innerHTML = resolved === 'dark' ? U.icons.sunMode : U.icons.moon;
       btnTheme.setAttribute('aria-pressed', resolved === 'dark' ? 'true' : 'false');
       btnTheme.title = resolved === 'dark' ? t('theme_light') : t('theme_dark');
+      btnTheme.setAttribute('aria-label', btnTheme.title);
     }
   };
   U.toggleTheme = () => {
@@ -247,7 +269,9 @@ window.EnviroOS = window.EnviroOS || {};
       const v = t(el.dataset.i18n);
       if (v && v !== el.dataset.i18n) el.textContent = v;
     });
-    document.documentElement.lang = E.i18n.lang || 'hi';
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+    document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+    E.i18n.applyDocumentLanguage();
   };
 
   // Active node info (per-node crop/stage/size overlay + hardware capability flags).
@@ -480,7 +504,7 @@ window.EnviroOS = window.EnviroOS || {};
   U.go = (route) => {
     if (route === 'comm') route = 'home';
     if (route === 'robot') route = 'rover';
-    if (route === 'rover' && !U.hasRover()) route = 'home';
+    if ((route === 'rover' && !U.hasRover()) || (U.otherDeviceRoutes.includes(route) && !U.otherDeviceForRoute(route))) route = 'home';
     if (U.route === 'rover' && route !== 'rover') U.suspendRoverFrame?.();
     U.route = route;
     try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (_) { window.scrollTo(0, 0); }
@@ -494,31 +518,33 @@ window.EnviroOS = window.EnviroOS || {};
     const dSt = (U.dosing && U.dosing.status) ? U.dosing.status() : {};
     const roverOn = !!(pumpOn || rSt.moving || rSt.mode === 'patrol' || (dSt.fertilizer && dSt.fertilizer.active) || (dSt.compost && dSt.compost.active) || (dSt.pesticide && dSt.pesticide.active));
     const cartCount = (U.marketCartCount && U.marketCartCount()) || 0;
-    const node2On = U.isSecondDeviceOn ? U.isSecondDeviceOn() : true;
-    const lang = (E.i18n && E.i18n.lang) || 'hi';
-    const hasRover = U.hasRover();
-    const key = `${U.route}|${roverOn}|${cartCount}|${node2On}|${lang}|${hasRover}|${U.auth?.mainModel}|${U.auth?.assistantModel}`;
-    if (U._lastTabsKey === key && $('tabs') && $('tabs').children.length === (hasRover ? 8 : 7)) return;
-    U._lastTabsKey = key;
+    const lang = (E.i18n && E.i18n.lang) || 'en';
+    const devices = U.otherNodes().map((slot, index) => ({
+      route: U.otherDeviceRoutes[index], label: U.otherDeviceTabLabel(index),
+      model: slot.model, online: U.otherNodeStatus?.(slot.key).online
+    }));
     const defs = [
-      ['home', 'nav_home', U.icons.home, ''],
-      ['soil', 'nav_soil', U.icons.drop, ''],
-      ['crop', 'nav_crop', U.icons.leaf, ''],
-      ['weather', 'nav_weather', U.icons.cloud, ''],
-      ['agri', 'nav_agri', U.icons.mic, 'agri-tab'],
-      ['rover', 'nav_rover', U.icons.rover, roverOn ? 'pump-live' : ''],
-      ['market', 'nav_market', U.icons.store || MI('storefront'), 'market-tab'],
-      ['second-device', 'nav_second_device', U.icons.device || MI('developer_board'), 'device-tab'],
-    ].filter(([id]) => id !== 'rover' || hasRover);
-    const html = defs.map(([id, key, icon, cls]) =>
-      `<button class="tab ${cls}" data-go="${id}" type="button" aria-selected="${U.route === id}" aria-label="${esc(id === 'second-device' ? U.deviceLabel(E.MQTT_SECOND_DEVICE) : t(key))}" title="${esc(id === 'second-device' ? U.deviceLabel(E.MQTT_SECOND_DEVICE) : t(key))}">`
-      + `<span class="tab-pill">${icon}`
-      + (id === 'rover' && roverOn ? '<span class="tab-dot" aria-hidden="true"></span>' : '')
-      + (id === 'market' && cartCount > 0 ? `<span class="tab-dot" aria-hidden="true" style="background:#22C55E"></span>` : '')
-      + (id === 'second-device' ? `<span class="tab-dot" aria-hidden="true" style="background:${node2On ? '#22C55E' : '#94A3B8'}"></span>` : '')
-      + `</span>`
-      + `<span class="tab-lbl">${esc(id === 'second-device' ? U.deviceLabel(E.MQTT_SECOND_DEVICE) : t(key))}</span></button>`
-    ).join('');
+      ['home', t('nav_home'), U.icons.home, ''],
+      ['soil', t('nav_soil'), U.icons.drop, ''],
+      ['crop', t('nav_crop'), U.icons.leaf, ''],
+      ['weather', t('nav_weather'), U.icons.cloud, ''],
+      ['agri', t('nav_agri'), U.icons.mic, 'agri-tab'],
+      ['rover', t('nav_rover'), U.icons.rover, roverOn ? 'pump-live' : ''],
+      ['market', t('nav_market'), U.icons.store || MI('storefront'), 'market-tab'],
+    ].filter(([id]) => id !== 'rover' || U.hasRover());
+    for (const device of devices) {
+      defs.push([device.route, device.label, U.icons.device, 'device-tab', device]);
+    }
+    const key = JSON.stringify([U.route, roverOn, cartCount, lang, U.hasRover(), devices]);
+    if (U._lastTabsKey === key) return;
+    U._lastTabsKey = key;
+    const html = defs.map(([id, label, icon, cls, device]) => {
+      const title = device ? label + ' · ' + device.model : label;
+      const dot = (id === 'rover' && roverOn) || (id === 'market' && cartCount > 0) || device?.online;
+      return `<button class="tab ${cls}" data-go="${id}" type="button" aria-selected="${U.route === id}" aria-label="${esc(title)}" title="${esc(title)}">`
+        + `<span class="tab-pill">${icon}${dot ? '<span class="tab-dot" aria-hidden="true"></span>' : ''}</span>`
+        + `<span class="tab-lbl">${esc(label)}</span></button>`;
+    }).join('');
     const tabsEl = $('tabs');
     if (tabsEl) {tabsEl.innerHTML = html;tabsEl.style.setProperty('--tab-count', String(defs.length));}
     const railEl = $('rail');
@@ -545,19 +571,20 @@ window.EnviroOS = window.EnviroOS || {};
     modelButton.innerHTML = `<span aria-hidden="true" class="dot ${model ? 'on' : ''}"></span><span>${esc(model || t('device_main'))}</span>`;
     U.refreshHandsFreeUI?.();
     const langObj = E.i18n.LANGS.find((l) => l.id === E.i18n.lang) || {};
-    $('btn-lang').innerHTML = `${U.icons.globe}<span>${esc(langObj.native || 'हिन्दी')}</span>`;
+    $('btn-lang').innerHTML = `${U.icons.globe}<span>${esc(langObj.native || 'English')}</span>`;
     const btnTheme = $('btn-theme');
     if (btnTheme) {
       const dark = U.isDark();
       btnTheme.innerHTML = dark ? U.icons.sunMode : U.icons.moon;
       btnTheme.setAttribute('aria-pressed', dark ? 'true' : 'false');
       btnTheme.title = dark ? t('theme_light') : t('theme_dark');
+      btnTheme.setAttribute('aria-label', btnTheme.title);
     }
-    $('btn-alerts').innerHTML = U.icons.bell + (U.alertCount > 0 ? `<span class="count">${U.alertCount}</span>` : '');
+    $('btn-alerts').innerHTML = U.icons.bell + (U.alertCount > 0 ? `<span class="count">${fmtInt(U.alertCount)}</span>` : '');
     const btnMarket = $('btn-market');
     if (btnMarket) {
       const cCount = (U.marketCartCount && U.marketCartCount()) || 0;
-      btnMarket.innerHTML = (U.icons.store || MI('storefront')) + (cCount > 0 ? `<span class="count">${cCount}</span>` : '');
+      btnMarket.innerHTML = (U.icons.store || MI('storefront')) + (cCount > 0 ? `<span class="count">${fmtInt(cCount)}</span>` : '');
       btnMarket.title = t('nav_market') || 'Market';
       btnMarket.setAttribute('aria-label', t('nav_market') || 'Market');
       btnMarket.setAttribute('aria-pressed', U.route === 'market' ? 'true' : 'false');
@@ -567,6 +594,12 @@ window.EnviroOS = window.EnviroOS || {};
   U._lastRoute = '';
   U._agriLang = '';
   U.render = () => {
+    U.syncOtherNodes?.();
+    U.syncRoverTelemetry?.();
+    const deviceRoute = U.otherDeviceRoutes.includes(U.route);
+    const device = deviceRoute && U.otherDeviceForRoute(U.route);
+    if (deviceRoute && !device) U.route = 'home';
+    if (!U.hasOtherNodes()) $('s-second-device')?.replaceChildren();
     if (!U.hasRover()) {
       const roverFrame=$('rover-mission-control');
       if (roverFrame) {U.suspendRoverFrame?.();roverFrame.remove();}
@@ -575,8 +608,8 @@ window.EnviroOS = window.EnviroOS || {};
     U.applyI18n();
     U.renderHead();
     U.renderTabs();
-    const map = { home: 's-home', soil: 's-soil', crop: 's-crop', weather: 's-weather', history: 's-history', agri: 's-agri', robot: 's-rover', rover: 's-rover', market: 's-market', 'second-device': 's-second-device' };
-    const el = $(map[U.route] || 's-home');
+    const map = { home: 's-home', soil: 's-soil', crop: 's-crop', weather: 's-weather', history: 's-history', agri: 's-agri', robot: 's-rover', rover: 's-rover', market: 's-market' };
+    const el = $(device ? 's-second-device' : map[U.route] || 's-home');
     const routeChanged = U._lastRoute !== U.route;
     U._lastRoute = U.route;
 
@@ -598,9 +631,9 @@ window.EnviroOS = window.EnviroOS || {};
       U.resumeRoverFrame?.();
       return;
     }
-    const fn = { home: U.vHome, soil: U.vSoil, crop: U.vCrop, weather: U.vWeather, history: U.vHistory, agri: U.vAgri, robot: U.vRover, rover: U.vRover, market: U.vMarket, 'second-device': U.vSecondDevice }[U.route] || U.vHome;
+    const fn = { home: U.vHome, soil: U.vSoil, crop: U.vCrop, weather: U.vWeather, history: U.vHistory, agri: U.vAgri, robot: U.vRover, rover: U.vRover, market: U.vMarket }[U.route] || U.vHome;
     try {
-      el.innerHTML = fn();
+      el.innerHTML = device ? U.vSecondDevice(device) : fn();
     } catch (e) {
       console.error('Screen render error for route:', U.route, e);
       el.innerHTML = `<div class="card"><p class="muted">—</p></div>`;
@@ -724,10 +757,14 @@ window.EnviroOS = window.EnviroOS || {};
       if (U.route === 'weather' || U.route === 'home') U.render();
     }).catch(() => { /* offline */ });
   };
+  let watchingMqtt = null;
   U.useSource = (mode) => {
     U.source = mode;
     try { localStorage.setItem('enviroos.source', mode); } catch (_) { /* ignore */ }
-    if (U.provider && U.provider.dispose) { try { U.provider.dispose(); } catch (_) { /* ignore */ } }
+    if (U.provider && U.provider !== watchingMqtt) U.provider.dispose?.();
+    const live = watchingMqtt;
+    watchingMqtt = null;
+    live?.dispose(U.provider === live);
     U.provider = null;
     U.bootProvider();
   };
@@ -743,18 +780,20 @@ window.EnviroOS = window.EnviroOS || {};
     };
     if (!wantLive) { startMock(); return; }
     try {
-      U.mqtt = new E.MqttProvider(U.profile);
-      U.provider = U.mqtt;
-      let gotFresh = false;
-      const unsub = U.mqtt.subscribe((snap) => {
-        if (snap && !snap.stale) gotFresh = true;
+      const live = new E.MqttProvider(U.profile, {deviceId:E.MQTT_DEFAULT_DEVICE});
+      watchingMqtt = U.provider = U.mqtt = live;
+      live.subscribe(snap => {
+        if (watchingMqtt !== live) return;
+        if (U.provider !== live) {
+          if (!snap || snap.stale) return;
+          U.mock?.dispose();
+          U.provider = U.mqtt = live;
+        }
         U.onSnap(snap);
       });
-      U._unsubLive = unsub;
       if (U.source === 'auto') {
         setTimeout(() => {
-          if (!gotFresh && U.provider === U.mqtt) {
-            try { U.mqtt.dispose(); } catch (_) { /* ignore */ }
+          if (watchingMqtt === live && U.provider === live && live.snapshot().stale) {
             U.provider = null;
             startMock();
           }
@@ -774,6 +813,11 @@ window.EnviroOS = window.EnviroOS || {};
   U.switchNode = (id) => {
     id = String(id || '').toUpperCase().replace(/[^0-9A-F]/g, '');
     if (!id) return;
+    if (id !== E.MQTT_DEFAULT_DEVICE) {
+      const slot = U.otherNodes().find(({key}) => U.otherNodeStatus?.(key).deviceId === id);
+      if (slot) U.openOtherNode(slot.key);
+      return;
+    }
     if (U.source === 'demo' || !U.mqtt) {
       U.useSource('live');
     }
@@ -808,18 +852,10 @@ window.EnviroOS = window.EnviroOS || {};
     const pushLog = (key, fill) => {
       let msg = t(key);
       if (fill) for (const k of Object.keys(fill)) msg = msg.replace('{' + k + '}', fill[k]);
-      const timeStr = new Date().toLocaleTimeString(E.i18n.lang === 'hi' ? 'hi-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit' });
+      const timeStr = E.i18n.date(Date.now(), {hour:'2-digit', minute:'2-digit'});
       st.log.push({ t: Date.now(), time: timeStr, msg });
       st.log = st.log.slice(-10);
       save();
-    };
-    const motorSend = (on) => {
-      if (U.mqtt && U.source !== 'demo') {
-        try {
-          if (on) { U.mqtt.sendMotor('forward', 150); }
-          else { U.mqtt.sendMotor('stop'); }
-        } catch (_) { /* ignore */ }
-      }
     };
     const api = {
       status: () => ({
@@ -832,24 +868,23 @@ window.EnviroOS = window.EnviroOS || {};
         health: st.fault ? 'fault' : 'normal', fault: st.fault, log: st.log.slice()
       }),
       start: (manual) => {
-        if (!U.nodeInfo().hasMotor && U.source !== 'demo') {
-          U.toast(t('node_basic_motor_notice'));
+        if (U.hasRover() || U.source !== 'demo') {
+          U.toast(t('device_pump_route'));
           return { ok: false };
         }
         st.running = true; st.startedAt = Date.now(); st.fault = null;
         st.startMoisture = U.snapshot ? U.snapshot.moisture : null;
         if (manual) st.pausedUntil = Date.now() + 30 * 60 * 1000;
-        motorSend(true);
         pushLog('ev_manual_on');
         U.toast(t('v_ans_pump_on'));
         U.render();
         return { ok: true };
       },
       stop: (manual) => {
+        if (U.hasRover() || U.source !== 'demo') return { ok: false };
         const was = st.running;
         st.running = false; st.startedAt = 0;
         if (manual) { st.pausedUntil = Date.now() + 30 * 60 * 1000; if (was) pushLog('ev_manual_off'); }
-        motorSend(false);
         U.toast(t('v_ans_pump_off'));
         U.render();
         return { ok: true };
@@ -883,17 +918,17 @@ window.EnviroOS = window.EnviroOS || {};
       },
       clearFault: () => { st.fault = null; save(); U.render(); },
       tick: () => {
-        if (!U.snapshot || st.mode !== 'auto') return;
+        if (U.hasRover() || U.source !== 'demo' || !U.snapshot || st.mode !== 'auto') return;
         if (Date.now() < st.pausedUntil) return;
         const s = U.snapshot;
         if (st.running) {
           const mins = (Date.now() - st.startedAt) / 60000;
           if (mins > (st.maxRunMin || 30)) {
             st.running = false; st.fault = t('ev_fault_run').replace('{n}', Math.round(mins)).replace('{l}', st.maxRunMin);
-            motorSend(false); pushLog('ev_fault_run', { n: Math.round(mins), l: st.maxRunMin }); U.render(); return;
+            pushLog('ev_fault_run', { n: Math.round(mins), l: st.maxRunMin }); U.render(); return;
           }
           if (st.startMoisture != null && s.moisture != null && (Date.now() - st.startedAt) > (st.dryWaitSec || 300) * 1000 && s.moisture <= st.startMoisture + 0.5) {
-            st.running = false; st.fault = t('ev_fault_dry'); motorSend(false); pushLog('ev_fault_dry'); U.render(); return;
+            st.running = false; st.fault = t('ev_fault_dry'); pushLog('ev_fault_dry'); U.render(); return;
           }
         }
         let d = null;
@@ -901,10 +936,10 @@ window.EnviroOS = window.EnviroOS || {};
         if (!d) return;
         if (d.action === 'on' && !st.running) {
           st.running = true; st.startedAt = Date.now(); st.fault = null; st.startMoisture = s.moisture;
-          motorSend(true); pushLog('ev_auto_on', { m: fmt1(s.moisture), lo: st.startBelow }); U.render();
+          pushLog('ev_auto_on', { m: fmt1(s.moisture), lo: st.startBelow }); U.render();
         } else if (d.action === 'off' && st.running) {
           st.running = false; st.startedAt = 0;
-          motorSend(false); pushLog('ev_auto_off', { m: fmt1(s.moisture), hi: st.stopAbove }); U.render();
+          pushLog('ev_auto_off', { m: fmt1(s.moisture), hi: st.stopAbove }); U.render();
         }
       }
     };
@@ -932,7 +967,7 @@ window.EnviroOS = window.EnviroOS || {};
       mode: st.mode, speed: st.speed, battery: st.battery, log: (st.log || []).slice(-12)
     });
     const pushLog = (msg) => {
-      const timeStr = new Date().toLocaleTimeString(E.i18n.lang === 'hi' ? 'hi-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit' });
+      const timeStr = E.i18n.date(Date.now(), {hour:'2-digit', minute:'2-digit'});
       st.log.push({ t: Date.now(), time: timeStr, msg });
       st.log = st.log.slice(-12);
       save();
@@ -1274,7 +1309,7 @@ window.EnviroOS = window.EnviroOS || {};
   /* ---------- dialog wiring ---------- */
   function wireDlg() {
     $('dlg-body').querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => {
-      try { E.i18n.setLang(b.dataset.lang); } catch (_) { /* ignore */ }
+      try { E.i18n.setLang(b.dataset.lang); U.ensureAdvice?.(); } catch (_) { /* ignore */ }
       if ($('dlg-body').querySelector('.onboard')) { U.dlgOnboard(); U.render(); return; }
       U.closeDlg(); U.render();
     }));
@@ -1313,7 +1348,11 @@ window.EnviroOS = window.EnviroOS || {};
     const st = $('dlg-body').querySelector('#f-save-settings');
     if (st) st.addEventListener('click', U.saveSettingsDlg);
     const sn = $('dlg-body').querySelectorAll('[data-pick-node]');
-    sn.forEach((b) => b.addEventListener('click', () => { U.switchNode(b.dataset.pickNode); U.closeDlg(); U.render(); }));
+    sn.forEach((b) => b.addEventListener('click', () => {
+      U.closeDlg();
+      if (b.dataset.openDeviceSlot) U.openOtherNode(b.dataset.openDeviceSlot);
+      else { U.switchNode(b.dataset.pickNode); U.go('home'); }
+    }));
     $('dlg-body').querySelectorAll('[data-dictate]').forEach((b) => b.addEventListener('click', () => {
       const inp = $('dlg-body').querySelector('#' + b.dataset.dictate);
       if (inp && E.voice && E.voice.sttSupported) E.voice.dictate(inp);
@@ -1336,12 +1375,12 @@ window.EnviroOS = window.EnviroOS || {};
       { icon: MI('storefront'), label: t('mk_title') + ' · ' + t('mk_tab_crops'), hint: t('mk_title'), run: () => { U.closeCmd(); U.mkTab = 'crops'; U.go('market'); } },
       { icon: MI('handyman'), label: t('mk_title') + ' · ' + t('mk_tab_gear'), hint: t('mk_title'), run: () => { U.closeCmd(); U.mkTab = 'gear'; U.go('market'); } },
       { icon: U.icons.scale, label: t('settings_tab_formulae') + ' · ' + t('dosing_crop_rx'), hint: t('settings_title'), run: () => { U.closeCmd(); U.dlgSettings('formulae'); } },
-      { icon: U.icons.pump, label: t('pump_start'), hint: t('nav_rover'), run: () => { U.closeCmd(); try { U.pump.start(true); } catch (_) { /* ignore */ } } },
-      { icon: U.icons.stop, label: t('dir_stop') + ' · ' + t('pump_title'), hint: t('nav_rover'), run: () => { U.closeCmd(); try { U.pump.stop(true); } catch (_) { /* ignore */ } } },
+      ...(U.hasRover() ? [{ icon: U.icons.pump, label: t('device_open_pumps'), hint: t('nav_rover'), run: () => {
+        U.closeCmd(); U.openRoverPumps();
+      } }] : []),
       { icon: U.icons.speaker, label: t('hero_advice_listen'), hint: t('nav_home'), run: () => { U.closeCmd(); U.speak(U.heroAdvice || U.sayHome()); } },
       { icon: U.icons.leaf, label: t('nodes_title'), hint: t('node_sheet_title'), run: () => { U.closeCmd(); U.dlgNodes(); } },
       { icon: U.icons.farm, label: t('profile_title'), hint: t('edit_label'), run: () => { U.closeCmd(); U.dlgProfile(); } },
-      { icon: U.icons.device || MI('developer_board'), label: U.deviceLabel(E.MQTT_SECOND_DEVICE), hint: t('device_secondary'), run: go('second-device') },
       { icon: U.icons.user || MI('person'), label: t('signin_title'), hint: t('signin_switch_account'), run: () => { U.closeCmd(); U.dlgSignIn(true); } },
       { icon: U.icons.bell, label: t('alerts_title'), hint: t('check_now'), run: () => { U.closeCmd(); U.sheetAlerts(); } }
     ];
@@ -1350,6 +1389,10 @@ window.EnviroOS = window.EnviroOS || {};
       items.push({ route:r, icon: ic, label: t(k), hint: t('check_now'), run: go(r) }));
     items.push({ icon: U.isDark() ? U.icons.sunMode : U.icons.moon, label: `${t('display_title')}: ${U.isDark() ? t('theme_light') : t('theme_dark')}`, hint: t('settings_title'), run: () => { U.closeCmd(); U.toggleTheme(); } });
     items.push({ icon: U.icons.globe, label: t('lang_title'), hint: t('settings_title'), run: () => { U.closeCmd(); U.dlgLang(); } });
+    items.push(...U.otherNodes().map((slot, index) => ({
+      icon: U.icons.device, label: U.otherDeviceTabLabel(index), hint: slot.model,
+      route: U.otherDeviceRoutes[index], run: go(U.otherDeviceRoutes[index])
+    })));
     return items.filter(item => item.route !== 'rover' || U.hasRover());
   };
   let cmdSel = 0;
@@ -1464,8 +1507,7 @@ window.EnviroOS = window.EnviroOS || {};
       const t2 = e.target.closest('[data-toggle-second-device]');
       if (t2) {
         if (U.secondDevice?.status().enabled) U.secondDevice.pause();
-        else if (U.secondDevice?.status().remembered) U.secondDevice.connect();
-        else U.dlgConnectSecondDevice();
+        else U.secondDevice?.connect();
         return;
       }
       const osi = e.target.closest('[data-open-signin]');

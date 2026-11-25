@@ -16,7 +16,9 @@ window.EnviroOS = window.EnviroOS || {};
   const t = U.t, esc = U.esc, $ = U.$;
   const MI = (name) => `<span class="material-symbols-outlined ui-ic" aria-hidden="true">${name}</span>`;
   const SVG = (body) => `<svg class="crop-svg gear-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g stroke="none">${body}</g></svg>`;
-  const inr = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+  const inr = n => new Intl.NumberFormat(E.i18n.locale, {
+    style: 'currency', currency: 'INR', maximumFractionDigits: 0
+  }).format(n);
 
   /* ---------- Gear Vector Icons ---------- */
   const GEAR_ICONS = {
@@ -655,7 +657,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `<div class="mk-chips">${chip1}${chip2}</div>`
       + `<div class="mk-row">`
       + `  <span class="mk-price">${inr(p.price)}${p.kind === 'crop' ? `<small class="mk-per-pack">${esc(t('mk_fixed_pack'))}</small>` : ''}</span>`
-      + `  <span class="mk-rate">★ ${p.rating.toFixed(1)} <small class="muted">(${p.reviews})</small></span>`
+      + `  <span class="mk-rate">★ ${E.i18n.number(p.rating, 1)} <small class="muted">(${E.i18n.number(p.reviews)})</small></span>`
       + `</div>`
       + `<div class="mk-actions-row">`
       + `  <button class="btn secondary sm mk-spec-btn" type="button" data-mk-spec="${p.id}">${MI('info')} <span>${esc(t('mk_specs'))}</span></button>`
@@ -714,7 +716,7 @@ window.EnviroOS = window.EnviroOS || {};
       + `  <div class="mk-spec-head-ic">${p.icon}</div>`
       + `  <div class="mk-spec-head-copy">`
       + `    <div class="stcond">${esc(p.name)}</div>`
-      + `    <div class="sheetval">${inr(p.price)} · <span class="mk-rate">★ ${p.rating.toFixed(1)}</span> <small class="muted">(${p.reviews} ${t('reviews') || 'reviews'})</small></div>`
+      + `    <div class="sheetval">${inr(p.price)} · <span class="mk-rate">★ ${E.i18n.number(p.rating, 1)}</span> <small class="muted">(${E.i18n.number(p.reviews)} ${esc(t('reviews'))})</small></div>`
       + `    <div class="mk-spec-variety">${esc(p.variety || p.sub)}${p.kind === 'crop' ? ' · '+esc(p.pack) : ''}</div>`
       + `  </div>`
       + `  <span class="flexsp"></span>`
@@ -743,7 +745,7 @@ window.EnviroOS = window.EnviroOS || {};
 
     return `<div class="mk-orders-list">`
       + ords.map((o) => {
-        const dateStr = new Date(o.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+        const dateStr = E.i18n.date(o.at, {day:'numeric', month:'short', year:'numeric'});
         const itemsList = (o.items || []).map(([pid, q, price]) => {
           const p = findProduct(pid);
           return `<div class="mk-ord-item">`
@@ -864,9 +866,9 @@ window.EnviroOS = window.EnviroOS || {};
       + `  <div class="mk-search-input-wrap">`
       + `    ${MI('search')}`
       + `    <input class="mk-search-input" id="mk-search" type="search" placeholder="${esc(t('mk_search_placeholder'))}" value="${esc(U.mkQuery || '')}" autocomplete="off" />`
-      + (q ? `    <button class="iconbtn sm mk-search-clear" type="button" data-mk-clear-search="1" aria-label="Clear">${MI('close')}</button>` : '')
+      + (q ? `    <button class="iconbtn sm mk-search-clear" type="button" data-mk-clear-search="1" aria-label="${esc(t('mk_clear_search'))}">${MI('close')}</button>` : '')
       + `  </div>`
-      + `  <select class="mk-sort-select" id="mk-sort" aria-label="Sort">`
+      + `  <select class="mk-sort-select" id="mk-sort" aria-label="${esc(t('mk_sort_label'))}">`
       + `    <option value="recommended" ${sort === 'recommended' ? 'selected' : ''}>${esc(t('mk_sort_recommended'))}</option>`
       + `    <option value="price_low" ${sort === 'price_low' ? 'selected' : ''}>${esc(t('mk_sort_price_low'))}</option>`
       + `    <option value="price_high" ${sort === 'price_high' ? 'selected' : ''}>${esc(t('mk_sort_price_high'))}</option>`
@@ -962,7 +964,7 @@ window.EnviroOS = window.EnviroOS || {};
         + `  <div class="seclabel2">${esc(t('mk_deliver_to'))}</div>`
         + `  <div class="field">`
         + `    <label for="mk-name">${esc(t('mk_farmer_name'))}</label>`
-        + `    <input id="mk-name" type="text" placeholder="e.g. Ramesh Patel" value="${esc(name)}" />`
+        + `    <input id="mk-name" type="text" value="${esc(name)}" />`
         + `  </div>`
         + `  <div class="grid2">`
         + `    <div class="field">`
@@ -976,7 +978,7 @@ window.EnviroOS = window.EnviroOS || {};
         + `  </div>`
         + `  <div class="field">`
         + `    <label for="mk-addr">${esc(t('mk_farmer_addr'))}</label>`
-        + `    <input id="mk-addr" type="text" placeholder="Village / Tehsil / Landmark" value="${esc(addr)}" />`
+        + `    <input id="mk-addr" type="text" value="${esc(addr)}" />`
         + `  </div>`
         + `  <div class="seclabel2">${esc(t('mk_pay_method'))}</div>`
         + `  <div class="mk-pay-options">`

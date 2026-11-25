@@ -29,17 +29,28 @@ const assert = require('node:assert/strict');
   });
   await page.setRequestInterception(true);
   const cards=[{payload:'left',label:'Left',direction:'left',wait:0}];
+  const appUrl = process.env.APP_URL || 'http://127.0.0.1:5186';
   page.on('request',async req=>{
-   if(!req.url().startsWith('http://127.0.0.1:18888/')) return req.continue();
+   if(!req.url().startsWith('http://127.0.0.1:18888/')) {
+    return req.url().startsWith(new URL(appUrl).origin + '/') || /^(blob|data):/.test(req.url()) ? req.continue() : req.abort();
+   }
    const path=new URL(req.url()).pathname;
    calls.push({path,method:req.method(),headers:req.headers(),body:req.postData()});
-   const headers={'Access-Control-Allow-Origin':new URL(process.env.APP_URL || 'http://127.0.0.1:5186').origin,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'};
+   const headers={'Access-Control-Allow-Origin':new URL(appUrl).origin,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, DELETE, OPTIONS'};
    if(req.method()==='OPTIONS')return req.respond({status:204,headers});
    assert.equal(req.headers().authorization,'Bearer integration-test-token-123456789');
    let data={};
    if(path==='/api/state') data={protocol:'field-rover-v1',manual_ready:manualReady,motor_enabled:true,state_time:123,busy:false,map_revision:null,can_start:false,robot:null};
    else if(path==='/api/qr/cards'){
-    if(req.method()==='POST')cards.push({...JSON.parse(req.postData()),payload:'enviro-test'});
+    if(req.method()==='POST') {
+     const command=JSON.parse(req.postData());
+     if(command.operation==='remove') cards.splice(cards.findIndex(card=>card.payload===command.payload),1);
+     else {
+      const steps = command.commands === 'stop' ? [{action:'stop',seconds:0}] :
+       [{action:'wait',seconds:4},{action:'forward',seconds:2}];
+      cards.push({...command,payload:'enviro-test',direction:command.commands === 'stop' ? 'stop' : 'sequence',wait:0,steps});
+     }
+    }
     data=cards;
    } else if(path.startsWith('/api/qr/card/')) return req.respond({status:200,headers,contentType:path.endsWith('/pdf')?'application/pdf':'image/png',body:Buffer.from(path.endsWith('/pdf')?'%PDF-1.4\n': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1sAAAAASUVORK5CYII=',path.endsWith('/pdf')?'utf8':'base64')});
    else if(path==='/api/history/trips') data=[{id:1,started:'2026-11-16T10:00:00',status:'Travel recorded'}];
@@ -48,7 +59,7 @@ const assert = require('node:assert/strict');
    else if(path==='/api/manual') {const automatic=JSON.parse(req.postData()).direction==='automatic';if(automatic)automaticPulses++;data={ok:true,phase:automatic&&automaticPulses>10?'Armed · waiting for next direction card':'Driving'};}
    await req.respond({status:200,headers,contentType:'application/json',body:JSON.stringify(data)});
   });
-  await page.goto(process.env.APP_URL || 'http://127.0.0.1:5186',{waitUntil:'networkidle2'});
+  await page.goto(appUrl,{waitUntil:'networkidle2'});
   await page.evaluate(()=>EnviroOS.UI.go('rover'));
   await page.waitForSelector('#rover-mission-control');
   const handle=await page.$('#rover-mission-control');const rover=await handle.contentFrame();
@@ -67,11 +78,40 @@ const assert = require('node:assert/strict');
   await rover.click('#qrCards');
   const qr=await (await rover.$('#qrFrame')).contentFrame();
   await qr.waitForSelector('#cards article img[src]');
-  await qr.type('#label','Gate');await qr.select('#direction','right');await qr.$eval('#wait',e=>e.value='4');
-  await qr.click('#form button');await qr.waitForFunction(()=>document.querySelectorAll('#cards article').length===2);
-  assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&JSON.parse(c.body).label==='Gate'));
-  await qr.click('#cards article button');
-  await page.waitForFunction(()=>true);
+  await page.evaluate(()=>{EnviroOS.i18n.setLang('hi'); EnviroOS.UI.render();});
+  await qr.waitForFunction(()=>document.documentElement.lang==='hi' &&
+    document.querySelector('h1').textContent==='QR कार्ड');
+  await page.evaluate(()=>{EnviroOS.i18n.setLang('en'); EnviroOS.UI.render();});
+  await qr.waitForFunction(()=>document.documentElement.lang==='en' &&
+    document.querySelector('h1').textContent==='QR cards');
+
+  await qr.waitForFunction(()=>!document.querySelector('#form button').disabled);
+  await qr.type('#label','Gate');await qr.type('#commands','wait(4), forward(2)');
+  await qr.click('#form button');
+  await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card saved on the Pi.');
+  assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&
+    JSON.stringify(JSON.parse(c.body))===JSON.stringify({label:'Gate',commands:'wait(4), forward(2)'})));
+  assert.match(await qr.$eval('#cards article:last-child small',e=>e.textContent),/Wait \(4 s\) → Forward \(2 s\)/);
+  assert.equal(await qr.$eval('#cards article:first-child .remove-card',button=>button.getAttribute('aria-label')),'Remove Left');
+  await qr.click('#cards article:last-child .card-actions button:first-child');
+  await qr.waitForFunction(()=>!document.querySelector('#cards article:last-child .card-actions button:first-child').disabled);
+  page.once('dialog', dialog=>dialog.accept());
+  await qr.click('#cards article:last-child .remove-card');
+  await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card removed from the Pi.');
+  assert.equal(await qr.$$eval('#cards article', items=>items.length),1);
+  assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&JSON.parse(c.body).operation==='remove'&&JSON.parse(c.body).payload==='enviro-test'));
+  await qr.type('#label','Loading bay');
+  await qr.type('#commands','stop');
+  await qr.click('#form button');
+  await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card saved on the Pi.');
+  assert.deepEqual(JSON.parse(calls.filter(c=>c.path==='/api/qr/cards'&&c.method==='POST').at(-1).body),
+    {label:'Loading bay',commands:'stop'});
+  assert.equal(await qr.$eval('#cards article:last-child small',e=>e.textContent),'Stop');
+  page.once('dialog', dialog=>dialog.accept());
+  await qr.click('#cards article:first-child .remove-card');
+  await qr.waitForFunction(()=>document.querySelector('#status').textContent==='Card removed from the Pi.');
+  assert.equal(await qr.$eval('#cards article h3',heading=>heading.textContent),'Loading bay');
+  assert(calls.some(c=>c.path==='/api/qr/cards'&&c.method==='POST'&&JSON.parse(c.body).operation==='remove'&&JSON.parse(c.body).payload==='left'));
   await rover.click('#closeQR');
   await rover.click('#historyTab');
   await rover.waitForSelector('#historyRows details');

@@ -3,7 +3,7 @@
  * names change every build, so they are NOT listed here. The fetch handler
  * below caches them at runtime on first load; offline works from then on.
  * Bump CACHE whenever SHELL changes. */
-const CACHE = 'enviroos-v94-agri-tab-style';
+const CACHE = 'enviroos-v143-inspection';
 const SHELL = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const SHELL = [
   './rover/theme.js',
   './rover/qr.html',
   './rover/qr.js',
+  './rover/locale.js',
   './rover/setup.html',
   './icons/icon.svg',
   './icons/icon-192.png',

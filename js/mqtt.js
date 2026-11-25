@@ -153,6 +153,8 @@ window.EnviroOS = window.EnviroOS || {};
     this.wantOpen = false;
     this.retryMs = 1000;
     this.pingTimer = null;
+    this.connectTimer = null;
+    this.retryTimer = null;
     this.lastTraffic = 0;
   }
 
@@ -162,7 +164,7 @@ window.EnviroOS = window.EnviroOS || {};
   };
 
   MqttClient.prototype.open = function () {
-    if (this.wantOpen && (this.state === 'connecting' || this.state === 'connected')) return;
+    if (this.wantOpen) return;
     this.wantOpen = true;
     this.retryMs = 1000;
     this._connect();
@@ -182,12 +184,19 @@ window.EnviroOS = window.EnviroOS || {};
     }
     try { ws.binaryType = 'arraybuffer'; } catch (_) { /* ignore */ }
     self.ws = ws;
+    // A socket may open without ever receiving MQTT CONNACK.
+    self.connectTimer = setTimeout(() => {
+      if (self.ws === ws && self.state === 'connecting') ws.close();
+    }, 6000);
     ws.onopen = () => {
-      try { ws.send(packetConnect(self.clientId, self.opts.keepAlive)); } catch (_) { self._schedule(); }
+      if (self.ws !== ws) return;
+      try { ws.send(packetConnect(self.clientId, self.opts.keepAlive)); } catch (_) { ws.close(); }
     };
-    ws.onmessage = (ev) => self._onData(ev.data);
+    ws.onmessage = (ev) => { if (self.ws === ws) self._onData(ev.data); };
     ws.onerror = () => { /* onclose follows */ };
     ws.onclose = () => {
+      if (self.ws !== ws) return;
+      clearTimeout(self.connectTimer);
       self._stopPing();
       self.ws = null;
       if (self.wantOpen) self._schedule();
@@ -197,11 +206,14 @@ window.EnviroOS = window.EnviroOS || {};
 
   MqttClient.prototype._schedule = function () {
     const self = this;
-    if (!self.wantOpen) return;
+    if (!self.wantOpen || self.retryTimer !== null) return;
     self.setState('reconnecting');
     const wait = self.retryMs;
     self.retryMs = Math.min(30000, self.retryMs * 2);
-    setTimeout(() => { if (self.wantOpen) self._connect(); }, wait);
+    self.retryTimer = setTimeout(() => {
+      self.retryTimer = null;
+      if (self.wantOpen) self._connect();
+    }, wait);
   };
 
   MqttClient.prototype._onData = function (data) {
@@ -226,6 +238,7 @@ window.EnviroOS = window.EnviroOS || {};
   MqttClient.prototype._handle = function (p) {
     const self = this;
     if (p.type === 'connack') {
+      clearTimeout(self.connectTimer);
       if (p.code !== 0) {
         try { self.opts.log && self.opts.log('conn refused: ' + p.code); } catch (_) {}
         self.setState('error:refused');
@@ -300,12 +313,16 @@ window.EnviroOS = window.EnviroOS || {};
 
   MqttClient.prototype.close = function () {
     this.wantOpen = false;
+    clearTimeout(this.connectTimer);
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
     this._stopPing();
-    try {
-      if (this.ws && this.state === 'connected') this.ws.send(packetDisconnect());
-    } catch (_) { /* ignore */ }
-    try { this.ws && this.ws.close(); } catch (_) { /* ignore */ }
+    const ws = this.ws;
     this.ws = null;
+    try {
+      if (ws && this.state === 'connected') ws.send(packetDisconnect());
+    } catch (_) { /* ignore */ }
+    try { ws?.close(); } catch (_) { /* ignore */ }
     this.setState('closed');
   };
 

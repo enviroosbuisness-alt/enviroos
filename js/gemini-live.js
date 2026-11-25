@@ -702,7 +702,7 @@ window.EnviroOS = window.EnviroOS || {};
     profile = profile || {};
     snapshot = snapshot || {};
     const crop = E.getCrop ? E.getCrop(profile.cropId || 'bajra') : { name_en: 'Bajra', name_hi: 'बाजरा' };
-    const cropName = lang === 'hi' ? (crop.name_hi || crop.name_en) : crop.name_en;
+    const cropName = E.i18n.STRINGS[lang]?.[crop.labelKey] || crop.name_en;
     const cacheKey = `${profile.cropId}_${profile.pincode}_${profile.stage}_${Math.round(snapshot.moisture || 0)}_${Math.round(snapshot.tempC || 0)}_${lang}`;
 
     // Return cache if under 10 minutes old
@@ -711,33 +711,8 @@ window.EnviroOS = window.EnviroOS || {};
       return adviceCache.text;
     }
 
-    function fallbackAdvice() {
-      const issues = (analysis && analysis.issues) || [];
-      const m = snapshot.moisture;
-      if (issues.includes('water')) {
-        if (m != null && m < 15) {
-          return lang === 'hi'
-            ? `${cropName} में मिट्टी बहुत सूखी है (नमी ${Math.round(m)}%)। आज ही खेत में हल्की सिंचाई करें।`
-            : `Soil is very dry for ${cropName} (${Math.round(m)}% moisture). Irrigate your field today.`;
-        }
-        return lang === 'hi'
-          ? `खेत में पानी की कमी हो रही है। शाम तक या कल सुबह पानी लगाने की तैयारी करें।`
-          : `Moisture is dipping in your field. Plan to irrigate this evening or tomorrow morning.`;
-      }
-      if (issues.includes('heat')) {
-        return lang === 'hi'
-          ? `आज तापमान अधिक है। दोपहर के समय फसल पर नज़र रखें और नमी बनाए रखने के लिए शाम को हल्का पानी दें।`
-          : `High temperatures today. Keep an eye on the crop and consider light evening watering.`;
-      }
-      if (issues.includes('soil')) {
-        return lang === 'hi'
-          ? `मिट्टी में पोषण की कमी है। फसल बढ़वार के लिए संतुलित यूरिया या डीएपी खाद डालें।`
-          : `Nutrient levels are low. Apply balanced Urea or DAP to support healthy growth.`;
-      }
-      return lang === 'hi'
-        ? `${profile.pincode ? profile.pincode + ' पिन कोड वाले ' : ''}${cropName} की स्थिति बहुत अच्छी है। नमी पर्याप्त है, आज कोई काम करने की जरूरत नहीं।`
-        : `Your ${cropName} field ${profile.pincode ? 'in ' + profile.pincode : ''} is looking great. Moisture is optimal; no action needed today.`;
-    }
+    const fallbackAdvice = () => E.i18n.STRINGS[lang]?.dashboard_advice_offline || E.i18n.STRINGS.en.dashboard_advice_offline;
+
 
     if (!configured() || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
       const text = fallbackAdvice();

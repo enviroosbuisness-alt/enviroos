@@ -20,18 +20,18 @@ window.EnviroOS = window.EnviroOS || {};
     const key = `${U.profile.cropId}|${U.profile.pincode}|${U.profile.stage}|${Math.round(U.snapshot.moisture || 0)}|${Math.round(U.snapshot.tempC || 0)}|${E.i18n.lang}`;
     if (key === adviceKey && U.heroAdvice) return;
     adviceKey = key;
+    const language = E.i18n.lang;
+    U.heroAdvice = t('dashboard_advice_offline');
     if (gemReady()) {
       E.gemini.generateDashboardAdvice(U.snapshot, U.analysis, U.profile, E.i18n.lang)
         .then((txt) => {
-          if (txt) {
+          if (txt && key === adviceKey && language === E.i18n.lang) {
             U.heroAdvice = txt;
             const el = $('hero-text');
             if (el) el.textContent = txt;
           }
         })
-        .catch(() => { U.heroAdvice = U.sayHome(); });
-    } else {
-      U.heroAdvice = U.sayHome();
+        .catch(() => {});
     }
   };
 
@@ -224,11 +224,11 @@ window.EnviroOS = window.EnviroOS || {};
     const diff = now - ts;
     const isToday = (new Date()).toDateString() === d.toDateString();
     const isYesterday = (new Date(now - 86400000)).toDateString() === d.toDateString();
-    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = E.i18n.date(d, {hour:'2-digit', minute:'2-digit'});
     if (diff < 60000) return E.i18n.lang === 'hi' ? 'अभी' : 'Just now';
     if (isToday) return (E.i18n.lang === 'hi' ? 'आज ' : 'Today ') + timeStr;
     if (isYesterday) return (E.i18n.lang === 'hi' ? 'कल ' : 'Yesterday ') + timeStr;
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + timeStr;
+    return E.i18n.date(d, {month:'short', day:'numeric'}) + ', ' + timeStr;
   };
 
   U.renderHistoryDrawer = () => {
@@ -565,13 +565,13 @@ window.EnviroOS = window.EnviroOS || {};
         + `</div>`
       : '';
     const imgHtml = m.image
-      ? `<div class="msg-img-wrap"><img src="${esc(m.image)}" alt="Crop inspection" class="msg-img"/></div>`
+      ? `<div class="msg-img-wrap"><img src="${esc(m.image)}" alt="${esc(t('agri_inspection_photo'))}" class="msg-img"/></div>`
       : '';
     const sayAction = (!isUser && E.voice && E.voice.ttsSupported && m.text)
       ? `<button class="msg-say" type="button" data-say="${esc(m.text)}" aria-label="${esc(t('speak_label'))}">${IC.speaker}</button>`
       : '';
     return `<div class="msg ${isUser ? 'user' : 'ag'}">`
-      + `<div class="msg-hd"><span class="msg-who">${isUser ? `${U.icons.user} Farmer` : `${U.icons.sparkle} Agri`}</span>${sayAction}</div>`
+      + `<div class="msg-hd"><span class="msg-who">${isUser ? `${U.icons.user} ${esc(t('agri_farmer'))}` : `${U.icons.sparkle} Agri`}</span>${sayAction}</div>`
       + imgHtml
       + `<div class="msg-txt">${esc(m.text)}</div>`
       + srcHtml
@@ -726,7 +726,7 @@ window.EnviroOS = window.EnviroOS || {};
         + `</div>`
         + `<div class="agri-widget-actions">`
         + `<button class="agri-widget-btn primary" type="button" data-chip="क्या मुझे आज सिंचाई करनी चाहिए?"><span class="material-symbols-outlined">water_drop</span><span>${isHi ? 'सिंचाई सलाह' : 'Irrigation Advice'}</span></button>`
-        + `<button class="agri-widget-btn" type="button" data-pump-toggle="1"><span class="material-symbols-outlined">${isWatering ? 'stop' : 'play_arrow'}</span><span>${isWatering ? (isHi ? 'मोटर बंद करें' : 'Stop Pump') : (isHi ? 'मोटर चालू करें' : 'Start Pump')}</span></button>`
+        + `<button class="agri-widget-btn" type="button" data-pump-toggle="1"><span class="material-symbols-outlined">${isWatering ? 'stop' : 'play_arrow'}</span><span>${esc(t(U.hasRover() ? 'device_open_pumps' : isWatering ? 'dir_stop' : 'pump_start'))}</span></button>`
         + `</div>`
         + `</div>`;
     }
@@ -1049,7 +1049,7 @@ window.EnviroOS = window.EnviroOS || {};
 
   /* ---------- cloud history fill ---------- */
   const fmtDbTime = (ts) => {
-    try { return new Date(ts).toLocaleString(E.i18n.lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+    try { return E.i18n.date(ts, {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}); }
     catch (_) { return String(ts || ''); }
   };
   const npkOf = (r) => {
@@ -1218,7 +1218,8 @@ window.EnviroOS = window.EnviroOS || {};
     }
     const pt = e.target.closest('[data-pump-toggle]');
     if (pt && U.pump) {
-      try { U.pump.status().running ? U.pump.stop(true) : U.pump.start(true); } catch (_) { /* ignore */ }
+      if (U.hasRover()) U.openRoverPumps();
+      else U.pump.status().running ? U.pump.stop(true) : U.pump.start(true);
       return;
     }
     const pm = e.target.closest('[data-pump-mode]');
@@ -1303,9 +1304,9 @@ window.EnviroOS = window.EnviroOS || {};
     if (stagedImage) {
       bar.style.display = 'flex';
       bar.className = 'agri-input-preview-bar';
-      bar.innerHTML = `<img src="${esc(stagedImage)}" class="agri-preview-thumb" alt="Preview"/>`
+      bar.innerHTML = `<img src="${esc(stagedImage)}" class="agri-preview-thumb" alt="${esc(t('agri_preview_photo'))}"/>`
         + `<span>${esc(t('agri_image_attached'))}</span>`
-        + `<button type="button" class="agri-preview-clear" id="agriclearpreview" aria-label="Remove image"><span class="material-symbols-outlined">close</span></button>`;
+        + `<button type="button" class="agri-preview-clear" id="agriclearpreview" aria-label="${esc(t('agri_remove_photo'))}"><span class="material-symbols-outlined">close</span></button>`;
     } else {
       bar.style.display = 'none';
       bar.innerHTML = '';

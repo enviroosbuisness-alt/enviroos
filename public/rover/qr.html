@@ -1,4 +1,85 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR cards · Enviro Rover</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#f4f5ee;color:#1c392c;font:16px system-ui}main{max-width:960px;margin:auto;padding:32px 20px}a{color:#246044}h1{font-size:clamp(32px,6vw,54px);margin:28px 0 6px}form,article{background:white;border:1px solid #c9d3c6;border-radius:12px;padding:16px}form{display:flex;gap:12px;flex-wrap:wrap;align-items:end}label{display:grid;gap:5px}input,select,button{padding:10px;border:1px solid #a5b6a3;border-radius:6px;font:inherit}button{background:#24543c;color:white;cursor:pointer}#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}article img{display:block;width:132px;max-width:100%;margin:0 auto}h3{margin:6px 0}small{display:block;margin-bottom:10px}</style>
-<link rel="stylesheet" href="enviroos-theme.css"><main><a href="index.html">← Mission control</a><h1>QR cards</h1><p>Print a card and place it where the rover should act.</p><h2>Add a stop</h2><form id="form"><label>Stop name<input id="label" required maxlength="48" placeholder="Greenhouse entrance"></label><label>Direction<select id="direction"><option value="forward">Straight</option><option value="left">Left</option><option value="right">Right</option><option value="backward">Back</option><option value="farmland">Farmland inspection</option></select></label><label>Wait in seconds<input id="wait" type="number" min="0" max="3600" step="1" value="3" required></label><button>Save card</button></form><p role="status" id="status"></p><h2>Field cards</h2><section id="cards"></section></main>
-<script type="module" src="qr.js"></script></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title data-rover-text="QR cards">QR cards</title>
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f5ee; color:#1c392c; font:16px system-ui; }
+    main { max-width:960px; margin:auto; padding:32px clamp(12px, 3vw, 20px); }
+    a { color:#246044; }
+    h1 { font-size:clamp(32px, 6vw, 54px); margin:28px 0 6px; }
+    form, article { background:white; border:1px solid #c9d3c6; border-radius:12px; padding:16px; }
+    input, textarea, button { padding:10px; border:1px solid #a5b6a3; border-radius:6px; font:inherit; }
+    button { background:#24543c; color:white; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:default; }
+
+    .qr-form-fields {
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) minmax(0, 2.4fr);
+      align-items:start;
+      gap:18px;
+    }
+    .qr-form-field { display:grid; min-width:0; gap:7px; }
+    .qr-form-field > span { font-size:.875rem; font-weight:600; }
+    .qr-form-field input, .qr-form-field textarea { width:100%; }
+    .qr-form-field textarea { display:block; resize:vertical; line-height:1.45; }
+    .qr-form-help { color:var(--enviro-sub, #405b4e); line-height:1.45; }
+    .qr-form-footer {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:12px;
+      border-top:1px solid var(--enviro-line, #c9d3c6);
+      margin-top:16px;
+      padding-top:12px;
+    }
+    .qr-form-footer button { margin-inline-start:auto; }
+    #status { margin:0; font-size:.875rem; overflow-wrap:anywhere; }
+    #status:empty { position:absolute; }
+
+    #cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+    article img { display:block; width:132px; max-width:100%; margin:0 auto; }
+    article h3 { margin:6px 0; }
+    article small { display:block; margin-bottom:10px; }
+    .card-actions { display:grid; gap:6px; }
+    .card-actions button { width:100%; }
+    .remove-card { background:transparent; color:inherit; }
+    @media (max-width:560px) {
+      .qr-form-fields { grid-template-columns:minmax(0, 1fr); gap:14px; }
+      .qr-form-footer button { width:100%; }
+    }
+  </style>
+  <link rel="stylesheet" href="enviroos-theme.css">
+</head>
+<body>
+  <main>
+    <a href="index.html">← <span data-rover-text="Mission control">Mission control</span></a>
+    <h1 data-rover-text="QR cards">QR cards</h1>
+    <p data-rover-text="Print a card and place it where the rover should act.">Print a card and place it where the rover should act.</p>
+    <h2 data-rover-text="Add a QR card">Add a QR card</h2>
+    <form id="form">
+      <div class="qr-form-fields">
+        <label class="qr-form-field">
+          <span data-rover-text="Card name">Card name</span>
+          <input id="label" required maxlength="48" placeholder="Greenhouse entrance" data-rover-placeholder="Greenhouse entrance">
+        </label>
+        <label class="qr-form-field qr-commands">
+          <span data-rover-text="Commands">Commands</span>
+          <textarea id="commands" rows="3" required maxlength="1000" spellcheck="false" dir="ltr" aria-describedby="command-help" placeholder="inspect, wait(5), forward(3), right(2), stop"></textarea>
+          <small class="qr-form-help" id="command-help" data-rover-text="Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.">Enter one command per line or separate commands with commas. Moves without a time run for 3 seconds.</small>
+        </label>
+      </div>
+      <div class="qr-form-footer">
+        <p role="status" id="status"></p>
+        <button type="submit" data-rover-text="Save card">Save card</button>
+      </div>
+    </form>
+    <h2 data-rover-text="Field cards">Field cards</h2>
+    <section id="cards"></section>
+  </main>
+  <script type="module" src="qr.js"></script>
+</body>
+</html>
